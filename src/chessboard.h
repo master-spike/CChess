@@ -31,6 +31,7 @@ int doMove(struct Move move, struct Chessboard* oldboard, struct Chessboard* new
 void printBoard(struct Chessboard* board);
 void writeCoord(unsigned char coord, char* str);
 void resetChessboard(struct Chessboard* board);
+unsigned char displayPiece(unsigned char c, unsigned char blank);
 
 
 #endif

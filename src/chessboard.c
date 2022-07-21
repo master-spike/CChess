@@ -193,21 +193,29 @@ int knightAttack(unsigned char sq, int player, struct Chessboard* b) {
   char sqf = sq % 8;
   char x = 2;
   char y = 1;
+  unsigned char ldir = 0;
+  unsigned char count = 0;
   for (int d = 0; d < 4; d++) {
     if (sqr + x < 8 && sqr + x >= 0 && sqf + y < 8 && sqf + y >= 0) {
-      if (b->squares[8*(sqr+x) + sqf + y] == n_c) return 1;
+      if (b->squares[8*(sqr+x) + sqf + y] == n_c) {
+        count++;
+        ldir = 8*(sqr+x) + sqf + y;
+      }
     }
     char t = y;
     y -= ((d+1)&1)*x; x += (d&1)*t;
     if (sqr + x < 8 && sqr + x >= 0 && sqf + y < 8 && sqf + y >= 0) {
-      if (b->squares[8*(sqr+x) + sqf + y] == n_c) return 1;
+      if (b->squares[8*(sqr+x) + sqf + y] == n_c) {
+        count++;
+        ldir = 8*(sqr+x) + sqf + y;
+      }
     }
     t = x;
     x = y;
     y = t;
     x *= ((d+1)&1*-1); y *= ((d+1)&1*-1);
   }
-  return 0;
+  return ldir + (count << 8);
 }
 
 int pawnAttack(unsigned char sq, int player, struct Chessboard* b) {
@@ -345,7 +353,8 @@ unsigned char isIllegalMove(struct Move move, struct Chessboard* board) {
     }
   }
   if (in_check) {
-    if (knightAttack(king_square,(p+1)&1, board)) {
+    unsigned char katt = knightAttack(king_square,(p+1)&1, board);
+    if (katt >> 8 >= 2) { // 2 attacking knights
       if (o != king_square) return 16;
       return isIllegalKingMove(move, board);
     }
@@ -386,13 +395,17 @@ unsigned char isIllegalMove(struct Move move, struct Chessboard* board) {
     for (int i = 0; i < 8; i++) {
       if (attack_dirs & (1 << i)) count++;
     }
-    if (count > 1) {
+    if (count + (katt ? 1 : 0) > 1) {
       if (o != king_square) return 16;
       return isIllegalKingMove(move, board);
     }
     if (o == king_square) return isIllegalKingMove(move, board);
     // otherwise check if its a block or capturing the checking piece.
-
+    
+    // if count == 0 and we are here there is 1 attacking knight and we are not moving the king. Check for capture.
+    if (count == 0 && d != (katt & 255)) return 16; 
+        
+    // here count == 1, no attacking knights.
     int i = 0;
     while (!((1 << i) & attack_dirs)) i++;
     if (i < 4) {
@@ -618,6 +631,8 @@ void writeCoord(unsigned char coord, char* str) {
   str[0] = file;
   str[1] = rank;
 }
+
+
 
 // ruy lopez berlin with bxc6
 unsigned short moveseq[15] = {1739,2291,1153,2942,2434,2745,67,2356,
