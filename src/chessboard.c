@@ -472,14 +472,13 @@ int doMove(struct Move move, struct Chessboard* oldboard, struct Chessboard* new
     newboard->castling_rights &= (15 ^ (3 << 2 * oldboard->toMove));
     // check for castles
     if (absDiff(o,d) == 2) {
-      unsigned char rank = (0 >> 3) << 3;
+      unsigned char rank = (o >> 3) << 3;
       unsigned char rook_loc = (o > d) ? 0 + rank : 7 + rank;
       char t = (o > d) ? 1 : -1;
       newboard->squares[d] = newboard->squares[o];
       newboard->squares[o] = 0;
       newboard->squares[d+t] = newboard->squares[rook_loc];
       newboard->squares[rook_loc] = 0;
-      newboard->castling_rights &= (15 ^ (3 << 2 * (1 - newboard->toMove)));
       return 0;
     }
   }
