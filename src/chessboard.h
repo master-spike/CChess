@@ -28,10 +28,12 @@ struct Move {
 unsigned char isIllegalMove(struct Move move, struct Chessboard *board);
 int putLegalMoves(struct Chessboard* board, struct Move* move);
 int doMove(struct Move move, struct Chessboard* oldboard, struct Chessboard* newboard);
+int sqIsAttacked(unsigned char sq, int player, struct Chessboard* b);
 void printBoard(struct Chessboard* board);
 void writeCoord(unsigned char coord, char* str);
 void resetChessboard(struct Chessboard* board);
 unsigned char displayPiece(unsigned char c, unsigned char blank);
+int mateStatus(struct Chessboard* board);
 
 
 #endif

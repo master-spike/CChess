@@ -11,17 +11,17 @@ SDIR = src
 
 LINKERFLAG = -lm
 
-_OBJS = chessboard.o
+_OBJS = chessboard.o evaluation.o main.o
 OBJS = $(patsubst %,$(ODIR)/%,$(_OBJS))
-OUT = $(OBJS:%.o=%)
+OUT = $(ODIR)/main
 
 all: ${OUT}
 
 $(ODIR)/%.o: $(SDIR)/%.c
 	$(CC) -c $(INC) -o $@ $<
 
-%: %.o
-	${CC} ${LINKERFLAG} $< -o $@
+$(OUT): ${OBJS}
+	${CC} ${LINKERFLAG} $^ -o $@
 
 .PHONY: clean
 

@@ -191,30 +191,28 @@ int knightAttack(unsigned char sq, int player, struct Chessboard* b) {
   unsigned char n_c = 4 + player;
   char sqr = sq / 8;
   char sqf = sq % 8;
-  char x = 2;
-  char y = 1;
+  char x;
+  char y;
   unsigned char ldir = 0;
   unsigned char count = 0;
   for (int d = 0; d < 4; d++) {
+    x = 2 - ((3 * d) / 2);
+    y = 3 - x;
     if (sqr + x < 8 && sqr + x >= 0 && sqf + y < 8 && sqf + y >= 0) {
       if (b->squares[8*(sqr+x) + sqf + y] == n_c) {
         count++;
         ldir = 8*(sqr+x) + sqf + y;
       }
     }
-    char t = y;
-    y -= ((d+1)&1)*x; x += (d&1)*t;
+    y = -y;
     if (sqr + x < 8 && sqr + x >= 0 && sqf + y < 8 && sqf + y >= 0) {
       if (b->squares[8*(sqr+x) + sqf + y] == n_c) {
         count++;
         ldir = 8*(sqr+x) + sqf + y;
       }
     }
-    t = x;
-    x = y;
-    y = t;
-    x *= ((d+1)&1*-1); y *= ((d+1)&1*-1);
   }
+  
   return ldir + (count << 8);
 }
 
@@ -225,11 +223,13 @@ int pawnAttack(unsigned char sq, int player, struct Chessboard* b) {
   unsigned char a1 = sq + 7 * d;
   unsigned char a2 = sq + 9 * d;
   if (a1 >= 0 && a1 < 64) {
-    if (b->squares[a1] == p_c) return 1;
+    if (b->squares[a1] == p_c && absDiff(a1/8, sq/8) == 1) return 1;
   }
   if (a2 >= 0 && a2 < 64) {
-    if (b->squares[a2] == p_c) return 1;
+    if (b->squares[a2] == p_c && absDiff(a2/8, sq/8) == 1) return 1;
   }
+  
+  
   return 0;
 }
 
@@ -239,8 +239,12 @@ int kingAttack(unsigned char sq, int player, struct Chessboard* b) {
   for (int i = -1; i<=1; i++) {
     for (int j = -1; j<=1; j++) {
       if (i == 0 && j == 0) continue;
-      if (sq + j + 8 * i < 0 || sq + j + 8 * i >= 64) continue;
-      if (b->squares[sq + j + 8*i] == k_c) return 1;
+      unsigned char t = sq + j + 8*i;
+      if (t < 0 || t >= 64) continue;
+      if (absDiff(sq/8,t/8) > 1 || absDiff(sq%8,t%8) > 1) continue;
+      if (b->squares[t] == k_c) {
+        return 1;
+      }
     }
   }
   return 0;
@@ -248,8 +252,13 @@ int kingAttack(unsigned char sq, int player, struct Chessboard* b) {
 
 // player is the "attacking" color
 int sqIsAttacked(unsigned char sq, int player, struct Chessboard* b) {
-  return pawnAttack(sq, player, b) | knightAttack(sq, player, b)
-       | lateralAttack(sq, player, b) | diagAttack(sq, player, b) | kingAttack(sq, player, b);  
+  int p = pawnAttack(sq, player, b) ? 1 : 0;
+  int n = knightAttack(sq, player, b) ? 2 : 0;
+  int l = lateralAttack(sq, player, b) ? 4 : 0;
+  int d = diagAttack(sq, player, b) ? 8 : 0;
+  int k = kingAttack(sq, player, b) ? 16 : 0;
+  return pawnAttack(sq, player, b) || knightAttack(sq, player, b)
+       || lateralAttack(sq, player, b) || diagAttack(sq, player, b) || kingAttack(sq, player, b);  
 }
 
 unsigned char isIllegalKingMove(struct Move move, struct Chessboard* board) {
@@ -467,6 +476,26 @@ int putLegalMoves(struct Chessboard* board, struct Move* moves) {
   return k;
 }
 
+
+int mateStatus(struct Chessboard* board) {
+  for (int i = 0; i < 64; i++) {
+    if (board->squares[i] == 0 || (board->squares[i] & 1) != (board->toMove ? 1 : 0)) continue;
+    for (int j = 0; j < 64; j++) {
+      
+      if (board->squares[j] && (board->squares[j]&1 == board->squares[i]&1)) continue;
+      struct Move m;
+      m.info = i + j*64;
+      if (!isIllegalMove(m, board)) return 0;
+    }
+  }
+  
+  for (int i = 0; i < 64; i++) {
+    if (board->squares[i] == 12 + (board->toMove ? 1 : 0)) {
+      return sqIsAttacked(i, board->toMove ? 0 : 1, board) ? 1 : 2; // 1 - checkmate, 2 - stalemate
+    }
+  }
+}
+
 // returns 0 on success, 1 if move was invalid.
 int doMove(struct Move move, struct Chessboard* oldboard, struct Chessboard* newboard) {
   if (isIllegalMove(move, oldboard)) return 1;
@@ -596,6 +625,28 @@ unsigned char displayPiece(unsigned char c, unsigned char blank) {
   return p;
 }
 
+unsigned short hashcode(struct Chessboard* board) {
+  int z = 0;
+  for (int i = 0; i < 16; i++) {
+    int p = 0;
+    for (int j = 0; j < 4; j++) {
+      p ^= board->squares[i*4+j] ? 1 : 0;
+    }
+    z ^= (p << i);
+  }
+  return z;
+}
+
+int equal(struct Chessboard* b1, struct Chessboard* b2) {
+  if ((b2->toMove && !b1->toMove) || (b1->toMove && !b2->toMove)) return 1;
+  if (b1->enpassant < 8 && b1->enpassant>=0 && b1->enpassant != b2->enpassant) return 1;
+  if ((b1->castling_rights ^ b2->castling_rights) & 15 != 0) return 1;
+  for (int i = 0; i < 64; i++) {
+    if (b1->squares[i] != b2->squares[i]) return 1;
+  }
+  return 0;
+}
+
 void printBoard(struct Chessboard* board) {
   if (board->toMove) printf("Black to move\n");
   else printf ("White to move\n");
@@ -619,9 +670,11 @@ void printBoard(struct Chessboard* board) {
   if (board->castling_rights & 2) printf("White Queenside\n");
   if (board->castling_rights & 4) printf("Black Kingside\n");
   if (board->castling_rights & 8) printf("Black Queenside\n");
-  if (board->enpassant < 8) printf("En passant on file %d\n\n", board->enpassant);
-  
-
+  if (board->enpassant < 8) printf("En passant on file %d\n", board->enpassant);
+  if (mateStatus(board) == 1) printf("Checkmate!\n");
+  if (mateStatus(board) == 2) printf("Stalemate!\n");
+  printf("Hashcode: %d\n",hashcode(board));
+  printf("\n");
   
 }
 
@@ -630,42 +683,5 @@ void writeCoord(unsigned char coord, char* str) {
   char file = 104 - coord % 8;
   str[0] = file;
   str[1] = rank;
-}
-
-
-
-// ruy lopez berlin with bxc6
-unsigned short moveseq[15] = {1739,2291,1153,2942,2434,2745,67,2356,
-                              2918,2934,2331,2413,2852,2933,3372};
-
-int main() {
-  struct Chessboard board;
-  resetChessboard (&board);
-  printBoard(&board);
-  printf("\n");
-  struct Chessboard newboard;
-  for (int i = 0; i < 15; i++) {
-    struct Move move;
-    move.info = moveseq[i];
-    if(!doMove(move,&board,&newboard)){
-      board = newboard;
-      printf("\n");
-      printBoard(&board);
-      printf("\n");  
-    }
-    else printf ("\n INVALID MOVE %d \n", moveseq[i]);
-
-  }
-  struct Move s[4096];
-  char stro[3] = "  ";
-  char strd[3] = "  ";
-  int z = putLegalMoves(&board,s);
-  for (int i = 0; i < z; i++) {
-    if (!isIllegalMove(s[i], &board)) {
-      writeCoord(s[i].info & 63, stro);
-      writeCoord((s[i].info >> 6) & 63, strd);
-      printf("%s -> %s | ", stro, strd);
-    }
-  }
 }
 
