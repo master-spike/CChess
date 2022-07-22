@@ -31,8 +31,11 @@ struct EvalParams defaultParams() {
 }
 
 double evaluate(struct Chessboard* board, struct EvalParams* params) {
-  // TODO check for checkmate / stalemate
-  // sum the piece values
+  
+  int ms = mateStatus(board);
+  if (ms == 1) return (board->toMove) ? MAX : MIN; // checkmate
+  else if (ms == 2) return 0.0; // stalemate
+  
   double total = 0;
   
   // flags for detecting bishop pair
@@ -117,11 +120,4 @@ double evaluate(struct Chessboard* board, struct EvalParams* params) {
   }
   
   return total;
-}
-
-double (*evalFnFromParams(struct EvalParams *params))(struct Chessboard *) {
-  double fn(struct Chessboard *board) {
-    return evaluate(board, params);
-  }
-  return &fn;
 }
