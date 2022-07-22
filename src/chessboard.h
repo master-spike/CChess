@@ -34,6 +34,7 @@ void writeCoord(unsigned char coord, char* str);
 void resetChessboard(struct Chessboard* board);
 unsigned char displayPiece(unsigned char c, unsigned char blank);
 int mateStatus(struct Chessboard* board);
-
+unsigned short hashcode(struct Chessboard* b1);
+int equal(struct Chessboard* b1, struct Chessboard* b2);
 
 #endif
