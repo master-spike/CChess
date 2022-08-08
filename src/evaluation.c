@@ -3,19 +3,19 @@
 #include "chessboard.h"
 #include "evaluation.h"
 
-double def_v_p = 2.0;
-double def_v_n = 6.0;
-double def_v_b = 6.0;
-double def_v_r = 10.0;
-double def_v_q = 18.0;
+double def_v_p = 1.0;
+double def_v_n = 3.0;
+double def_v_b = 3.0;
+double def_v_r = 5.0;
+double def_v_q = 9.0;
 double def_v_k = 0.0;
  
-double def_b_pair = 0.5;
-double def_p_island = -0.0;
-double def_dbl_pawn = -0.0;
-double def_opp_sq_val = 0.0;
-double def_centre_control = 0.375;
-double def_p_adv = 0.25;
+double def_b_pair = 0.25;
+double def_p_island = -0.125;
+double def_dbl_pawn = -0.125;
+double def_opp_sq_val = 0.125;
+double def_centre_control = 0.125;
+double def_p_adv = 0.0625;
 
 struct EvalParams defaultParams() {
   struct EvalParams p;

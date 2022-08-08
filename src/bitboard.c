@@ -40,6 +40,22 @@ struct BitBoard doMove(struct BitBoard* b, uint16_t move) {
   
 }
 
+int findKing(uint64_t king_bits) {
+  
+  int p = 0;
+  int k = 32;
+  while (k > 0) {
+    uint64_t mask = ((1 << k) - 1) << k;
+    if (king_bits & mask) {
+      king_bits >> k;
+      p += k;
+    }
+    k = k/2;
+  } 
+  
+  return p;
+}
+
 struct BitBoard startBoard() {
   
   struct BitBoard b;
@@ -50,7 +66,7 @@ struct BitBoard startBoard() {
   
   b.c_rights = 15;
   b.enpassant = 8;
-  b.ply_count = 15;
+  b.ply_count = 0;
   
   return b;
   
@@ -58,6 +74,13 @@ struct BitBoard startBoard() {
 
 void printBitBoard(struct BitBoard b) {
   
+  char str_w[] = "White";
+  char str_b[] = "Black";
+
+  char* col_str = (b.ply_count & 1) ? str_b : str_w;
+  
+  printf("%s to move:\n", col_str);
+
   char p = ' ';
   char q = '/';
   char t;

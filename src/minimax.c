@@ -73,7 +73,7 @@ struct MinimaxReturn minimaxAlphaBeta(struct Chessboard b, unsigned int d, doubl
   int n_moves = putLegalMoves(&b, nextmoves);
   
   // possibly sort by most forcing moves
-  if (d > 5) {
+  if (d > 3) {
     sortMoves(0, n_moves, nextmoves, &b, params);
   }
   
@@ -85,8 +85,8 @@ struct MinimaxReturn minimaxAlphaBeta(struct Chessboard b, unsigned int d, doubl
     for (int i = n_moves - 1; i >= 0; i--) {
       doMove(nextmoves[i], &b, &nextboard);
       struct MinimaxReturn t = minimaxAlphaBeta(nextboard, d-1, alpha, beta, params);
-      val = (t.val < val) ? t.val : val;
       m.move = (m.move.info == 0 || t.val <= val) ? nextmoves[i] : m.move;
+      val = (t.val < val) ? t.val : val;
       if (val <= alpha) break;
       beta = (val < beta) ? val : beta;
     }
@@ -96,8 +96,8 @@ struct MinimaxReturn minimaxAlphaBeta(struct Chessboard b, unsigned int d, doubl
     for (int i = 0; i < n_moves; i++) {
       doMove(nextmoves[i], &b, &nextboard);
       struct MinimaxReturn t = minimaxAlphaBeta(nextboard, d-1, alpha, beta, params);
-      val = (t.val > val) ? t.val : val;
       m.move = (m.move.info == 0 || t.val >= val) ? nextmoves[i] : m.move;
+      val = (t.val > val) ? t.val : val;
       if (val >= beta) break;
       alpha = (val > alpha) ? val : alpha;
     }

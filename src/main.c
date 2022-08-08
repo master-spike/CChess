@@ -11,7 +11,7 @@ int main() {
 
   struct Chessboard newboard;
   while (!mateStatus(&board)) {
-    struct MinimaxReturn best = minimaxAlphaBeta(board,3,-INFINITY,INFINITY,&p);
+    struct MinimaxReturn best = minimaxAlphaBeta(board,5,-INFINITY,INFINITY,&p);
     printBoard(&board);
     printf("Eval: %f. Best move = %d,%d\n\n\n",best.val, best.move.info%64, best.move.info/64);
     doMove(best.move, &board, &newboard);
