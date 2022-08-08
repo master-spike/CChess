@@ -5,6 +5,15 @@ unsigned int absDiff(int i, int j) {
   return (i - j < 0) ? (j - i) : (i - j);
 }
 
+const int knight_ys[8] = {-1, 1, -2, 2, -2, 2, -1, 1};
+const int knight_xs[8] = {-2, -2, -1, -1, 1, 1, 2, 2};
+
+const int orth_xs[4] = {1, -1, 0, 0};
+const int orth_ys[4] = {0, 0, 1, -1};
+
+const int diag_xs[4] = {1, -1, 1, -1};
+const int diag_ys[4] = {1, 1, -1, -1};
+
 unsigned char isIllegalPawnMove(struct Move move, struct Chessboard* board) {
   // we know that origin refs a pawn as this is called from isIllegal;
   // we also check for pins and checks prior to calling this.
@@ -14,7 +23,7 @@ unsigned char isIllegalPawnMove(struct Move move, struct Chessboard* board) {
     
   unsigned char pieceColor = (board->squares[o] & 1);
   unsigned char targetP = board->squares[d];
-    
+  
   char ofile = o % 8;
   char dfile = d % 8;
   char orank = o / 8;
@@ -71,6 +80,89 @@ unsigned char isIllegalKnightMove (struct Move move, struct Chessboard* board) {
   if (targetP != 0 && ((targetP & 1) == pieceColor)) return 8; 
   
   return 0;
+}
+
+unsigned int checkTest(struct Chessboard* board) {
+  
+  // return info:
+  // [2 bits pawn][8 bits queen][4 bits bishop][4 bits rooks][8 bits knight]
+  // knight bits [2L1U,2L1D,1L2U,1L2D,..,2R1U,2R1D]
+  // rook bits [L,R,U,D]
+  // bishop bits [LU,LD,RU,RD]
+  // queen bits: [diagonals like bishop | orthogonals like rook]
+  // pawn bits: [L,R]
+  
+  unsigned char p = (board->toMove) ? 1 : 0;
+  unsigned char op = 1 - p;
+  unsigned char ks = 64;
+  for (int i = 0; i < 64; i++) {
+    if (p + 12 == board->squares[i]) {
+      ks = i;
+      break;
+    }
+  }
+  
+  unsigned int attacks = 0;
+  
+  int kr = ks / 8;
+  int kf = ks % 8;
+  
+  // check knight attacks
+  for (int i = 0; i < 8; i++) {
+    int x = knight_xs[i];
+    int y = knight_ys[i];
+    if (kr + y < 0 || kr + y >= 8 || kf + x < 0 || kf + x >= 8) continue;
+    unsigned char bs = (kr + y) * 8 + kf + x;
+    if (board->squares[bs] == 4 + op) attacks |= (1 << i);
+  }
+  
+  // check orth attacks
+  for (int i = 0; i < 4; i++) {
+    int x = orth_xs[i];
+    int y = orth_ys[i];
+    int d = 1;
+    while (kr + y*d < 0 && kr + y*d >= 8 && kf + x*d < 0 && kf + x*d >= 8) {
+      unsigned char bs = (kr + y*d) * 8 + kf + x*d;
+      if (!board->squares[bs]) {
+        d++; continue;
+      }
+      if (board->squares[bs] == 8 + op) attacks |= (1 << (i+8));
+      if (board->squares[bs] == 10 + op) attacks |= (1 << (i+16));
+      break;
+    }
+  }
+  // check diagonal attacks
+  for (int i = 0; i < 4; i++) {
+    int x = diag_xs[i];
+    int y = diag_ys[i];
+    int d = 1;
+    while (kr + y*d < 0 && kr + y*d >= 8 && kf + x*d < 0 && kf + x*d >= 8) {
+      unsigned char bs = (kr + y*d) * 8 + kf + x*d;
+      if (!board->squares[bs]) {
+        d++; continue;
+      }
+      if (board->squares[bs] == 6 + op) attacks |= (1 << (i+12));
+      if (board->squares[bs] == 10 + op) attacks |= (1 << (i+20));
+      break;
+    }
+  }
+  
+  
+  int y = (board->toMove) ? -1 : 1;
+  // check pawn attacks
+  int x2 = 1;
+  int x1 = -1;
+  if (y + kr >= 0 && y + kr < 8) {
+    if (x1 + kf >= 0 && x1 + kf < 8) {
+      unsigned char bs = (kr + y) * 8 + kf + x1;
+      if (board->squares[bs] == 2 + op) attacks |= (1 << 24);
+    }
+    if (x2 + kf >= 0 && x2 + kf < 8) {
+      unsigned char bs = (kr + y) * 8 + kf + x2;
+      if (board->squares[bs] == 2 + op) attacks |= (1 << 25);
+    }
+  }
+  return attacks;
 }
 
 unsigned char isIllegalRookMove (struct Move move, struct Chessboard* board) {
@@ -138,8 +230,8 @@ int diagAttack(unsigned char sq, int player, struct Chessboard* b) {
   unsigned char q_c = 10 + player;
   unsigned char b_c = 6 + player;
   for (char d = 0; d < 4; d++) {
-    char dh = 1 - 2 * (d & 1);
-    char dv = 1 - 2 * (d >> 1);
+    int dh = diag_xs[d];
+    int dv = diag_ys[d];
     int cr = sqr + dv;
     int cf = sqf + dh;
     while (cr >= 0 && cr < 8 && cf >= 0 && cf < 8) {
@@ -196,8 +288,8 @@ int knightAttack(unsigned char sq, int player, struct Chessboard* b) {
   unsigned char ldir = 0;
   unsigned char count = 0;
   for (int d = 0; d < 4; d++) {
-    x = 2 - ((3 * d) / 2);
-    y = 3 - x;
+    x = knight_xs[d];
+    y = knight_ys[d];
     if (sqr + x < 8 && sqr + x >= 0 && sqf + y < 8 && sqf + y >= 0) {
       if (b->squares[8*(sqr+x) + sqf + y] == n_c) {
         count++;
@@ -252,11 +344,6 @@ int kingAttack(unsigned char sq, int player, struct Chessboard* b) {
 
 // player is the "attacking" color
 int sqIsAttacked(unsigned char sq, int player, struct Chessboard* b) {
-  int p = pawnAttack(sq, player, b) ? 1 : 0;
-  int n = knightAttack(sq, player, b) ? 2 : 0;
-  int l = lateralAttack(sq, player, b) ? 4 : 0;
-  int d = diagAttack(sq, player, b) ? 8 : 0;
-  int k = kingAttack(sq, player, b) ? 16 : 0;
   return pawnAttack(sq, player, b) || knightAttack(sq, player, b)
        || lateralAttack(sq, player, b) || diagAttack(sq, player, b) || kingAttack(sq, player, b);  
 }
@@ -327,6 +414,7 @@ unsigned char isIllegalMove(struct Move move, struct Chessboard* board) {
   if (board->squares[o] >= 14) return 128;
   if (board->squares[o] == 0) return 2;
   if ((board->squares[o] & 1) != ((board->toMove) ? 1 : 0)) return 4;
+  
 
   
   unsigned char illegal = 0;
@@ -349,100 +437,16 @@ unsigned char isIllegalMove(struct Move move, struct Chessboard* board) {
   }
   
   if (illegal) return illegal;
-
-  int in_check = 0;
   
-  unsigned char king_square = 64;
+
+  
+  struct Chessboard testboard;
+  doMove(move, board, &testboard);
 
   for (unsigned char i = 0; i < 64; i++) {
-    if (board->squares[i] == 12+p) {
-      in_check = (sqIsAttacked(i, (p+1)&1 ,board)) ? 1 : 0;
-      king_square = i;
-      break;
+    if (testboard.squares[i] == 12+p) {
+      if (sqIsAttacked(i, (p+1)&1, &testboard)) return 16;
     }
-  }
-  if (in_check) {
-    unsigned char katt = knightAttack(king_square,(p+1)&1, board);
-    if (katt >> 8 >= 2) { // 2 attacking knights
-      if (o != king_square) return 16;
-      return isIllegalKingMove(move, board);
-    }
-    unsigned char attack_dirs = 0;
-    int hd = 1;
-    int vd = 0;
-    
-    int opp_col = (p+1)&1;
-    
-    for (unsigned char i = 0; i < 4; i++) {
-      hd = (1 - (1 & i)) * (1 - (2 & i)); vd = (1 & i) * (1 - (2 & i));
-      for (unsigned char k = king_square + hd + 8*vd; k >= 0 && k < 64; k += hd+8*vd) {
-        if (board->squares[k] == 8+opp_col || board->squares[k] == 10+opp_col) {
-          attack_dirs = attack_dirs | (1 << i);
-          break;
-        }
-        if (board->squares[k] || absDiff(k%8, (k+hd)%8) > 1) break;
-      }
-    }
-    char pawn_dir = p ? -1 : 1;
-    for (unsigned char i = 4; i < 8; i++) {
-      hd = 1-(2&i); vd = 1-(2&(i+1));
-      if (absDiff(king_square % 8, (king_square+hd)%8) > 1) continue;
-      if (vd == pawn_dir && board->squares[king_square+hd+8*vd] == 2+opp_col) {
-        attack_dirs = attack_dirs | (1 << i);
-        continue;
-      }
-      for (unsigned char k = king_square + hd + 8*vd; k >= 0 && k < 64; k += hd+8*vd) {
-        if (board->squares[k] == 6+opp_col || board->squares[k] == 10+opp_col) {
-          attack_dirs = attack_dirs | (1 << i);
-          break;
-        }
-        if (board->squares[k] || absDiff(k%8, (k+hd)%8) > 1) break;
-      }
-    }
-    
-    int count = 0;
-    for (int i = 0; i < 8; i++) {
-      if (attack_dirs & (1 << i)) count++;
-    }
-    if (count + (katt ? 1 : 0) > 1) {
-      if (o != king_square) return 16;
-      return isIllegalKingMove(move, board);
-    }
-    if (o == king_square) return isIllegalKingMove(move, board);
-    // otherwise check if its a block or capturing the checking piece.
-    
-    // if count == 0 and we are here there is 1 attacking knight and we are not moving the king. Check for capture.
-    if (count == 0 && d != (katt & 255)) return 16; 
-        
-    // here count == 1, no attacking knights.
-    int i = 0;
-    while (!((1 << i) & attack_dirs)) i++;
-    if (i < 4) {
-      hd = (1 - (1 & i)) * (1 - (2 & i)); vd = (1 & i) * (1 - (2 & i));
-    }
-    else {
-      hd = 1-(2&i); vd = 1-(2&(i+1));
-    }
-    int flag = 1;
-    unsigned char k;
-    for (k = king_square + hd + 8*vd; k >= 0 && k < 64; k += hd+8*vd) {
-      if (d == k) {
-        flag = 0;
-        break;
-      }
-      
-      // we check that if attacker is enpassantable pawn that we are capturing it en passant
-      // this is the only case where we can get out of check with a capture with dest not
-      // on piece LOS. So we must check for it in a special case.
-      if ((board->squares[k] & 1) == opp_col && board->squares[k]){
-        if ((board->squares[k] & 14) == 2 && board->enpassant == k%8) {
-          if (d + 8*pawn_dir == k && board->squares[o] == p + 2) flag = 0;
-        }
-        
-        break;
-      }
-    }
-    if (flag) return 16;
   }
   
   return 0;
@@ -476,7 +480,6 @@ int putLegalMoves(struct Chessboard* board, struct Move* moves) {
   return k;
 }
 
-
 int mateStatus(struct Chessboard* board) {
   for (int i = 0; i < 64; i++) {
     if (board->squares[i] == 0 || (board->squares[i] & 1) != (board->toMove ? 1 : 0)) continue;
@@ -485,20 +488,19 @@ int mateStatus(struct Chessboard* board) {
       if (board->squares[j] && (board->squares[j]&1 == board->squares[i]&1)) continue;
       struct Move m;
       m.info = i + j*64;
-      if (!isIllegalMove(m, board)) return 0;
+      if (!isIllegalMove(m, board)) return (board->fifty_move_rule >= 50) ? 3 : 0;
     }
   }
-  
   for (int i = 0; i < 64; i++) {
     if (board->squares[i] == 12 + (board->toMove ? 1 : 0)) {
-      return sqIsAttacked(i, board->toMove ? 0 : 1, board) ? 1 : 2; // 1 - checkmate, 2 - stalemate
+      return sqIsAttacked(i, (board->toMove ? 0 : 1), board) ? 1 : 2; // 1 - checkmate, 2 - stalemate
     }
   }
 }
 
-// returns 0 on success, 1 if move was invalid.
+
 int doMove(struct Move move, struct Chessboard* oldboard, struct Chessboard* newboard) {
-  if (isIllegalMove(move, oldboard)) return 1;
+  //if (isIllegalMove(move, oldboard)) return 1;
   
   // copy old state over
   for (int i = 0; i < 64; i++) newboard->squares[i] = oldboard->squares[i];
@@ -508,6 +510,9 @@ int doMove(struct Move move, struct Chessboard* oldboard, struct Chessboard* new
   
   unsigned char o = (move.info & 63);
   unsigned char d = (move.info >> 6) & 63;
+  
+  newboard->fifty_move_rule = (oldboard->squares[o] == 3 - newboard->toMove ||
+                               oldboard->squares[d]) ? 0 : oldboard->fifty_move_rule + 1;
   
   // if king move update castling rights and check for castles
   if ((newboard->squares[o] & 14) == 12) {
@@ -594,7 +599,7 @@ void resetChessboard(struct Chessboard* board) {
   board->toMove = 0;
   board->enpassant = 8;
   board->castling_rights = 15; // 15 = 00001111 => all castling rights available
-
+  board->fifty_move_rule = 0;
 }
 
 unsigned char displayPiece(unsigned char c, unsigned char blank) {
@@ -666,14 +671,16 @@ void printBoard(struct Chessboard* board) {
     printf("|\n+---+---+---+---+---+---+---+---+\n");
   }
   printf("Castling rights:\n");
-  if (board->castling_rights & 1) printf("White Kingside\n");
-  if (board->castling_rights & 2) printf("White Queenside\n");
-  if (board->castling_rights & 4) printf("Black Kingside\n");
-  if (board->castling_rights & 8) printf("Black Queenside\n");
+  if (board->castling_rights & 1) printf(" White Kingside |");
+  if (board->castling_rights & 2) printf(" White Queenside |");
+  if (board->castling_rights & 4) printf(" Black Kingside |");
+  if (board->castling_rights & 8) printf(" Black Queenside |");
+  printf("\n");
   if (board->enpassant < 8) printf("En passant on file %d\n", board->enpassant);
   if (mateStatus(board) == 1) printf("Checkmate!\n");
   if (mateStatus(board) == 2) printf("Stalemate!\n");
-  printf("Hashcode: %d\n",hashcode(board));
+  if (mateStatus(board) == 3) printf("Fifty move rule!\n");
+  printf("Hashcode: %d, checkTest: 0x%08x\n",hashcode(board), checkTest(board));
   printf("\n");
   
 }

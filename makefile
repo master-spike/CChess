@@ -11,7 +11,7 @@ SDIR = src
 
 LINKERFLAG = -lm
 
-_OBJS = chessboard.o evaluation.o main.o
+_OBJS = chessboard.o evaluation.o minimax.o main.o
 OBJS = $(patsubst %,$(ODIR)/%,$(_OBJS))
 OUT = $(ODIR)/main
 

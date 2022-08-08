@@ -11,6 +11,8 @@ struct Chessboard {
   unsigned int toMove; // true -> black, false -> white
   unsigned char enpassant; // 0-7 represents which file has en-passant, any larger number means not allowed
   
+  unsigned char fifty_move_rule;
+  
   // piece on square = player bit + piece id | 0 (empty)
   // player bit = 0 | 1 [white | black]
   // piece ids: 2 = pawn, 4 = knight, 6 = bishop, 8 = rook, 10 = queen, 12 = king
