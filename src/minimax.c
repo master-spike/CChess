@@ -1,15 +1,23 @@
 #include "minimax.h"
 
+void swapMove(struct Move* m1, struct Move* m2) {
+  struct Move t = *m1;
+  *m1 = *m2;
+  *m2 = t;
+}
+
+void swapDouble(double* d1, double* d2) {
+  double t = *d1;
+  *d1 = *d2;
+  *d2 = t;
+}
+
 void sortMovesQsort(int l, int h, struct Move* moves, double* evals) {
   if (h - l <= 1) return;
   if (h - l == 2) {
     if (evals[l] <= evals[l+1]) return;
-    struct Move t = moves[l];
-    moves[l] = moves[l+1];
-    moves[l+1] = t;
-    double td = evals[l];
-    evals[l] = evals[l+1];
-    evals[l+1] = td;
+    swapMove(moves+l, moves+l+1);
+    swapDouble(evals+l,evals+l+1);
     return;
   }
   double pivot = evals[l];
@@ -27,12 +35,8 @@ void sortMovesQsort(int l, int h, struct Move* moves, double* evals) {
       continue;
     }
     // here we swap
-    struct Move t = moves[x];
-    moves[x] = moves[y];
-    moves[y] = t;
-    double td = evals[x];
-    evals[x] = evals[y];
-    evals[y] = td;
+    swapMove(moves+x, moves+y);
+    swapDouble(evals+x,evals+y);
     x++; y--;
   }
   int m = x;
@@ -40,12 +44,8 @@ void sortMovesQsort(int l, int h, struct Move* moves, double* evals) {
     double v = evals[x];
     if (v > pivot) m = x-1;
   }
-  struct Move t = moves[m];
-  moves[m] = moves[l];
-  moves[l] = t;
-  double td = evals[m];
-  evals[m] = evals[l];
-  evals[l] = td;
+  swapMove(moves+m, moves+l);
+  swapDouble(evals+m,evals+l);
   sortMovesQsort(l, m, moves, evals);
   sortMovesQsort(m+1, h, moves, evals);
 }
@@ -73,7 +73,7 @@ struct MinimaxReturn minimaxAlphaBeta(struct Chessboard b, unsigned int d, doubl
   int n_moves = putLegalMoves(&b, nextmoves);
   
   // possibly sort by most forcing moves
-  if (d > 3) {
+  if (d > 5) {
     sortMoves(0, n_moves, nextmoves, &b, params);
   }
   
@@ -82,10 +82,10 @@ struct MinimaxReturn minimaxAlphaBeta(struct Chessboard b, unsigned int d, doubl
   
   if (b.toMove) { // minimizing player
     val = MAX;
-    for (int i = n_moves - 1; i >= 0; i--) {
+    for (int i = 0; i < n_moves; i++) {
       doMove(nextmoves[i], &b, &nextboard);
       struct MinimaxReturn t = minimaxAlphaBeta(nextboard, d-1, alpha, beta, params);
-      m.move = (m.move.info == 0 || t.val <= val) ? nextmoves[i] : m.move;
+      m.move = (m.move.info == 0 || t.val < val) ? nextmoves[i] : m.move;
       val = (t.val < val) ? t.val : val;
       if (val <= alpha) break;
       beta = (val < beta) ? val : beta;
@@ -93,10 +93,10 @@ struct MinimaxReturn minimaxAlphaBeta(struct Chessboard b, unsigned int d, doubl
   }
   else { // maximising player
     val = MIN;
-    for (int i = 0; i < n_moves; i++) {
+    for (int i = n_moves - 1; i >= 0; i--) {
       doMove(nextmoves[i], &b, &nextboard);
       struct MinimaxReturn t = minimaxAlphaBeta(nextboard, d-1, alpha, beta, params);
-      m.move = (m.move.info == 0 || t.val >= val) ? nextmoves[i] : m.move;
+      m.move = (m.move.info == 0 || t.val > val) ? nextmoves[i] : m.move;
       val = (t.val > val) ? t.val : val;
       if (val >= beta) break;
       alpha = (val > alpha) ? val : alpha;

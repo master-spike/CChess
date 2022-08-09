@@ -3,11 +3,11 @@
 #include "chessboard.h"
 #include "evaluation.h"
 
-double def_v_p = 1.0;
-double def_v_n = 3.0;
-double def_v_b = 3.0;
-double def_v_r = 5.0;
-double def_v_q = 9.0;
+double def_v_p = 2.0;
+double def_v_n = 6.0;
+double def_v_b = 6.0;
+double def_v_r = 10.0;
+double def_v_q = 18.0;
 double def_v_k = 0.0;
  
 double def_b_pair = 0.25;
