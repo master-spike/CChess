@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
-
+#include <patterns.h>
 
 struct BitBoard {
   uint64_t pieces[12]; // PIECECODES: pawn 0, knight 2, bishop 4, rook 6, queen 8, king 10 | COLOR: white 0, black 1
@@ -36,6 +36,7 @@ struct BitBoard doMove(struct BitBoard* b, uint16_t move) {
     }
   }
   
+
   
   
 }
@@ -54,6 +55,48 @@ int findKing(uint64_t king_bits) {
   } 
   
   return p;
+
+}
+
+int getPieceAt(struct BitBoard*b, int pos, int player) {
+  if (pos >= 64 || pos < 0) return 12;
+  
+  uint64_t mask = 1ULL << pos;
+
+  for (int i = player; i < 12; i+=2) {
+    if (b->pieces[i] & mask) return i;
+  }
+
+  return 12;
+}
+
+int isLegalMove(struct BitBoard* b, uint16_t move) {
+  int o = move&63;
+  int d = (move>>6)&63;
+  int promo_piece = 2 * (move>>12) + (b->ply_count&1) + 2;
+  
+  int blockmaskindex = move % 4096;
+
+  int pla_col = b->ply_count&1;
+  int opp_col = pla_col ^ 1;
+
+  uint16_t allied_squares = 0;
+  for (int i = 0; i < 6; i++) {
+    allied_squares |= b->pieces[i*2 + pla_col];
+  }
+  
+  uint64_t o_bit = 1ULL << o;
+  uint64_t d_bit = 1ULL << d;
+  
+  if (d_bit & allied_squares) return 1; // destination blocked by friendly piece
+  
+  int mov_p = getPieceAt(b, o, pla_col);
+  if (mov_p == 12) return 1; // origin doesn't contain valid piece to move
+  
+  // todo check castling rules
+  
+  
+  return 0;
 }
 
 struct BitBoard startBoard() {
