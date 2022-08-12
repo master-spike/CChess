@@ -1,16 +1,17 @@
 #ifndef MINIMAX_H_GUARD
 #define MINIMAX_H_GUARD
 
+
 #include "evaluation.h"
-#include "chessboard.h"
+#include "bitboard.h"
+#include <stdint.h>
 
 struct MinimaxReturn {
   double val;
-  struct Move move;
+  uint16_t move;
+  int d;
 };
 
-struct MinimaxReturn minimaxAlphaBeta(struct Chessboard b, unsigned int d, double alpha, double beta, struct EvalParams* params);
-
-
+struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double alpha, double beta);
 
 #endif
