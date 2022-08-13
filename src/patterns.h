@@ -31,4 +31,10 @@ extern const uint64_t king_att_table[64];
 // this table allows us to check for blocks using a bit mask.
 extern const uint64_t block_masks[4096];
 
+
+extern const uint64_t ranks[64];
+extern const uint64_t files[64];
+extern const uint64_t diagonals[64];
+extern const uint64_t antidiagonals[64];
+
 #endif

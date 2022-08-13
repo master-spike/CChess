@@ -3,7 +3,6 @@
 #include "bitboard.h"
 #include "patterns.h"
 
-
 const uint64_t default_pieces[12] = {65280ULL, 71776119061217280ULL,
                                      66ULL, 4755801206503243776ULL,
                                      36ULL, 2594073385365405696ULL,
@@ -12,7 +11,6 @@ const uint64_t default_pieces[12] = {65280ULL, 71776119061217280ULL,
                                      8ULL, 576460752303423488ULL};
 
 const char piece_chars[12] = {'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r', 'Q', 'q', 'K', 'k'};
-
 
 int countBits(uint64_t n)
 {
@@ -25,18 +23,18 @@ int countBits(uint64_t n)
   return c;
 }
 
-uint64_t allPieces(struct BitBoard* b) {
+uint64_t allPieces(struct BitBoard *b)
+{
   uint64_t v = 0;
-  for (int i = 0; i < 12; i++) {
+  for (int i = 0; i < 12; i++)
+  {
     v |= b->pieces[i];
   }
   return v;
 }
 
-
 struct BitBoard bbDoMove(struct BitBoard *b, int sp, int ep, int sqi, int sqj)
 {
-
 
   struct BitBoard newboard = *b;
 
@@ -52,11 +50,11 @@ struct BitBoard bbDoMove(struct BitBoard *b, int sp, int ep, int sqi, int sqj)
   }
   newboard.ply_count++;
   newboard.enpassant = 8;
-  newboard.last_move = sqi + 64*sqj;
+  newboard.last_move = sqi + 64 * sqj;
   if (sp == 0 && sqj - sqi == 16)
     newboard.enpassant = sqi % 8;
-  if (sp/2 == 0 && (sqj >= 56 || sqi <= 7))
-    newboard.last_move += 4096 * ((ep/2)-1);
+  if (sp / 2 == 0 && (sqj >= 56 || sqi <= 7))
+    newboard.last_move += 4096 * ((ep / 2) - 1);
   if (sp == 1 && sqi - sqj == 16)
     newboard.enpassant = sqi % 8;
   if (sp == 10)
@@ -65,13 +63,13 @@ struct BitBoard bbDoMove(struct BitBoard *b, int sp, int ep, int sqi, int sqj)
     newboard.c_rights &= (uint8_t)~12U;
   if (sqi == 0 || sqj == 0)
     newboard.c_rights &= (uint8_t)~1U;
-  if (sqi == 7|| sqj == 7)
+  if (sqi == 7 || sqj == 7)
     newboard.c_rights &= (uint8_t)~2U;
   if (sqi == 56 || sqj == 56)
     newboard.c_rights &= (uint8_t)~4U;
   if (sqi == 63 || sqj == 63)
     newboard.c_rights &= (uint8_t)~8U;
-  
+
   newboard.last_move_md = 0;
   newboard.last_move_md += ((allPieces(b) & (1ULL << sqj)) ? 1 : 0);
 
@@ -95,7 +93,7 @@ struct BitBoard bbDoCastles(struct BitBoard *b, int kingside)
   newboard.ply_count++;
   newboard.pieces[k_p] ^= (ki | kj);
   newboard.pieces[r_p] ^= (ri | rj);
-  newboard.last_move = ki + 64*kj;
+  newboard.last_move = ki + 64 * kj;
   newboard.last_move_md = 2;
   return newboard;
 }
@@ -109,7 +107,7 @@ struct BitBoard bbDoEnpassant(struct BitBoard *b, int pi, int pj, int ep)
   newboard.pieces[opp] ^= (1ULL << ep);
   newboard.enpassant = 8;
   newboard.ply_count++;
-  newboard.last_move = pi + 64*pj + 16384;
+  newboard.last_move = pi + 64 * pj + 16384;
   newboard.last_move_md = 1;
   return newboard;
 }
@@ -205,7 +203,8 @@ uint64_t squareAttackedBy(struct BitBoard *board, int sq, int ignore_king, int p
   {
     all_pieces |= board->pieces[i];
   }
-  if (ignore_king) all_pieces &= ~board->pieces[10+pla];
+  if (ignore_king)
+    all_pieces &= ~board->pieces[10 + pla];
 
   // filter the attackers by pieces which are in LOS direction of sq
   diag_attackers &= bishop_table[sq];
@@ -220,16 +219,20 @@ uint64_t squareAttackedBy(struct BitBoard *board, int sq, int ignore_king, int p
 
   uint64_t toa = orth_attackers;
   uint64_t tda = diag_attackers;
-  while (toa) {
-    uint64_t t = toa & (toa-1); // t is next toa, t ^ toa is the potential candidate for attacker.
+  while (toa)
+  {
+    uint64_t t = toa & (toa - 1); // t is next toa, t ^ toa is the potential candidate for attacker.
     int i = findKing(t ^ toa);
-    if (!((all_pieces ^ orth_attackers) & block_masks[i * 64 + sq])) mask |= (t ^ toa);
+    if (!((all_pieces ^ orth_attackers) & block_masks[i * 64 + sq]))
+      mask |= (t ^ toa);
     toa = t;
   }
-  while (tda) {
-    uint64_t t = tda & (tda-1); // t is next toa, t ^ toa is the potential candidate for attacker.
+  while (tda)
+  {
+    uint64_t t = tda & (tda - 1); // t is next toa, t ^ toa is the potential candidate for attacker.
     int i = findKing(t ^ tda);
-    if (!((all_pieces ^ diag_attackers) & block_masks[i * 64 + sq])) mask |= (t ^ tda);
+    if (!((all_pieces ^ diag_attackers) & block_masks[i * 64 + sq]))
+      mask |= (t ^ tda);
     tda = t;
   }
 
@@ -284,6 +287,47 @@ uint64_t attackMaskOfPiece(int piece, int pos)
   return king_att_table[pos];
 }
 
+uint64_t getPinmask(struct BitBoard *b, int i, int k, uint64_t all_pieces)
+{
+  // assert i != king position
+  if (i == k)
+    return ~0ULL;
+
+  uint64_t i_bit = 1ULL << i;
+  uint64_t align_test_diagonal = i_bit & (diagonals[k]);
+  uint64_t align_test_antidiag = i_bit & (antidiagonals[k]);
+  uint64_t align_test_file = i_bit & (files[k]);
+  uint64_t align_test_rank = i_bit & (ranks[k]);
+
+  int pla = b->ply_count & 1;
+  int opp = pla ^ 1;
+
+  uint64_t test_pieces = 0;
+  if (!(align_test_diagonal | align_test_antidiag | align_test_file | align_test_rank))
+    return ~0ULL;
+
+  if (align_test_diagonal)
+    test_pieces = diagonals[k] & (b->pieces[opp + 4] | b->pieces[opp + 8]);
+  if (align_test_antidiag)
+    test_pieces = antidiagonals[k] & (b->pieces[opp + 4] | b->pieces[opp + 8]);
+  if (align_test_file)
+    test_pieces = files[k] & (b->pieces[opp + 6] | b->pieces[opp + 8]);
+  if (align_test_rank)
+    test_pieces = ranks[k] & (b->pieces[opp + 6] | b->pieces[opp + 8]);
+  
+  //if (test_pieces == 0) printf("What the fuck \n");
+  while (test_pieces)
+  {
+    uint64_t tp = test_pieces & (test_pieces - 1);
+    int tp_n = findKing(tp ^ test_pieces);
+    if ((block_masks[64 * k + tp_n] & all_pieces) == i_bit)
+      return block_masks[64 * k + tp_n] | (tp ^ test_pieces);
+    test_pieces = tp;
+  }
+  
+  return ~0ULL;
+}
+
 int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, int just_one)
 {
   int count = 0;
@@ -297,13 +341,35 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
 
   uint64_t our_pieces = board->pieces[pla] | board->pieces[pla + 2] | board->pieces[pla + 4] | board->pieces[pla + 6] | board->pieces[pla + 8] | board->pieces[pla + 10];
   uint64_t opp_pieces = board->pieces[opp] | board->pieces[opp + 2] | board->pieces[opp + 4] | board->pieces[opp + 6] | board->pieces[opp + 8] | board->pieces[opp + 10];
-  
+
   uint64_t co_mask = (~check_bc_mask || (!cap_only)) ? ~0ULL : opp_pieces; // this ensures if we are doing captures only
-  if (~check_bc_mask){
-    for (int i = 1; i < cap_only && i < 6; i++) {
-      co_mask &= ~(board->pieces[2*i + opp - 2]);
+  if (~check_bc_mask)
+  {
+    for (int i = 1; i < cap_only && i < 6; i++)
+    {
+      co_mask &= ~(board->pieces[2 * i + opp - 2]);
     }
   }
+
+  uint64_t p_bits = board->pieces[pla];
+  uint64_t n_bits = board->pieces[pla + 2];
+  uint64_t b_bits = board->pieces[pla + 4];
+  uint64_t q_bits = board->pieces[pla + 6];
+  uint64_t k_bits = board->pieces[pla + 8];
+  /*
+  while (p_bits)
+  {
+    uint64_t pawn = p_bits & (p_bits - 1);
+    p_bits ^= pawn;
+    int i = findKing(pawn);
+    uint64_t capture_mask = opp_pieces & ((pla) ? black_pawn_attack_table[i] : white_pawn_attack_table[i]);
+  }*/
+
+  uint64_t pinnable = ~0ULL;
+  if (diagonals[our_king] & (board->pieces[4+opp] | board->pieces[8+opp])) pinnable |= diagonals[our_king];
+  if (antidiagonals[our_king] & (board->pieces[4+opp] | board->pieces[8+opp])) pinnable |= antidiagonals[our_king];
+  if (ranks[our_king] & (board->pieces[6+opp] | board->pieces[8+opp])) pinnable |= ranks[our_king];
+  if (files[our_king] & (board->pieces[6+opp] | board->pieces[8+opp])) pinnable |= files[our_king];
 
   for (int i = 0; i < 64; i++)
   {
@@ -312,25 +378,7 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
       continue; // our piece isnt here
     int i_piece = getPieceAt(board, i, pla);
 
-    uint64_t pinmask = ~0ULL;
-    uint64_t align_test = (1ULL << i) & (bishop_table[our_king] | rook_table[our_king]);
-    if (i != our_king && align_test && !(block_masks[64 * our_king + i] & (our_pieces | opp_pieces)))
-    {
-
-      uint64_t pinner_mask = king_los_mask & squareInLosOf(board, i) & (board->pieces[opp + 4] | board->pieces[opp + 6] | board->pieces[opp + 8]); // this filters out all pieces that cant possibly pin piece at i to the king.
-      while (pinner_mask)
-      {
-        int p = findKing(pinner_mask);
-        int p_piece = getPieceAt(board, p, opp);
-        uint64_t q = attackMaskOfPiece(p_piece, p);
-        if (!(block_masks[p * 64 + i] & (our_pieces | opp_pieces)) && (board->pieces[pla + 10] & q) && (block_masks[p * 64 + our_king] & (1ULL << i)))
-        { // if pinner candidate is attacking piece i then piece i can only move between the king and p (including p)
-          pinmask = (block_masks[p * 64 + our_king] | (1ULL << p));
-          break;
-        }
-        pinner_mask ^= (1ULL << p);
-      }
-    }
+    uint64_t pinmask = (pinnable & (1ULL << i)) ? getPinmask(board, i, our_king, opp_pieces | our_pieces) : ~0ULL;
 
     uint64_t move_mask;
     uint64_t capture_mask;
@@ -357,10 +405,10 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
 
     capture_mask &= opp_pieces;
     move_mask &= ~(opp_pieces | our_pieces);
-    
-    uint64_t promo_mask = (i_piece <= 1) ? 255ULL << (56*opp) : 0;
+
+    uint64_t promo_mask = (i_piece <= 1) ? 255ULL << (56 * opp) : 0;
     uint64_t i_mask = (move_mask | capture_mask) & pinmask & (co_mask | promo_mask);
-    // allow all promotions during quescience
+    // allow all promotions during quiescence
     if (i != our_king)
       i_mask &= check_bc_mask;
 
@@ -388,7 +436,7 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
         new_boards[count + 3] = bbDoMove(board, i_piece, i_piece + 8, i, j);
         count += 4;
       }
-      else if (!cap_only || ~check_bc_mask || getPieceAt(board, j, opp) >= i_piece);
+      else if (!cap_only || ~check_bc_mask || getPieceAt(board, j, opp) >= i_piece)
       { // not promoting
         new_boards[count] = bbDoMove(board, i_piece, i_piece, i, j);
         count++;
@@ -396,7 +444,8 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
       i_mask ^= (1ULL << j);
     }
 
-    if (just_one && count > 0) return count;
+    if (just_one && count > 0)
+      return count;
   }
 
   // en passant and castles dealt with here. NOTE that it is impossible to double check with a pawn advancement due to geometry
@@ -442,32 +491,17 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
   {
     int targ_sq = (opp) ? board->enpassant + 40 : board->enpassant + 16;
     int targ_pawn = (opp) ? board->enpassant + 32 : board->enpassant + 24;
-    if (!(check_bc_mask & (1ULL << targ_pawn))) return count; // this prevents us doing en passant if we are in a check that cannot be resolved by the move.
+    if (!(check_bc_mask & (1ULL << targ_pawn)))
+      return count; // this prevents us doing en passant if we are in a check that cannot be resolved by the move.
     uint64_t ep_pawn_mask = ((pla) ? white_pawn_attack_table[targ_sq] : black_pawn_attack_table[targ_sq]) & board->pieces[pla];
     while (ep_pawn_mask)
     {
       int i = findKing(ep_pawn_mask);
 
-      uint64_t pinmask = ~0ULL;
-      uint64_t align_test = (1ULL << i) & (bishop_table[our_king] | rook_table[our_king]);
-      if (i != our_king && align_test && !(block_masks[64 * our_king + i] & (our_pieces | opp_pieces)))
+      uint64_t pinmask = (pinnable & (1ULL << i)) ? getPinmask(board, i, our_king, opp_pieces | our_pieces) : ~0ULL;
+
+      if (pinmask & (1ULL << targ_sq))
       {
-        // we must check for pins first
-        uint64_t pinner_mask = king_los_mask & squareInLosOf(board, i) & (board->pieces[opp + 4] | board->pieces[opp + 6] | board->pieces[opp + 8]); // this filters out all pieces that cant possibly pin piece at i to the king.
-        while (pinner_mask)
-        {
-          int p = findKing(pinner_mask);
-          int p_piece = getPieceAt(board, p, opp);
-          uint64_t q = attackMaskOfPiece(p_piece, p);
-          if (!(block_masks[p * 64 + i] & (our_pieces | opp_pieces)) && (board->pieces[pla + 10] & q) && (block_masks[p * 64 + our_king] & (1ULL << i)))
-          { // if pinner candidate is attacking piece i then piece i can only move between the king and p (including p)
-            pinmask = (block_masks[p * 64 + our_king] | (1ULL << p));
-            break;
-          }
-          pinner_mask ^= (1ULL << p);
-        }
-      }
-      if (pinmask & (1ULL << targ_sq)) {
         new_boards[count] = bbDoEnpassant(board, i, targ_sq, targ_pawn);
         count++;
       }
@@ -479,26 +513,29 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
   return count;
 }
 
-struct BitBoard doMove(struct BitBoard* board, uint16_t move) {
+struct BitBoard doMove(struct BitBoard *board, uint16_t move)
+{
   int o = move % 64;
   int d = (move / 64) % 64;
-  
 
-
-  int pla = board->ply_count&1;
+  int pla = board->ply_count & 1;
   int sp = getPieceAt(board, o, pla);
-  
-  if ((sp == 10 || sp == 11) && (o - d == 2)) return bbDoCastles(board, 1);
-  if ((sp == 10 || sp == 11) && (d - o == 2)) return bbDoCastles(board, 0);
-  
-  if ((sp == 0 || sp == 1) && (move >> 14)) {
+
+  if ((sp == 10 || sp == 11) && (o - d == 2))
+    return bbDoCastles(board, 1);
+  if ((sp == 10 || sp == 11) && (d - o == 2))
+    return bbDoCastles(board, 0);
+
+  if ((sp == 0 || sp == 1) && (move >> 14))
+  {
     int en_p = (o - d == 9 || o - d == -7) ? o - 1 : o + 1;
     return bbDoEnpassant(board, o, d, en_p);
   }
 
   int ep = sp;
-  if (sp == pla && (d >= 56 || d <= 7)) ep = ((move / 4096) % 4) * 2 + pla + 2;
-  
+  if (sp == pla && (d >= 56 || d <= 7))
+    ep = ((move / 4096) % 4) * 2 + pla + 2;
+
   return bbDoMove(board, sp, ep, o, d);
 }
 
@@ -518,10 +555,13 @@ struct BitBoard startBoard()
   return b;
 }
 
-void printMask(uint64_t mask) {
-  for (int i = 7; i >= 0; i--) {
-    for (int j = 7; j>=0; j--) {
-      printf(" %c", ((mask & (1ULL << (i*8+j))) ? '#' : '-'));
+void printMask(uint64_t mask)
+{
+  for (int i = 7; i >= 0; i--)
+  {
+    for (int j = 7; j >= 0; j--)
+    {
+      printf(" %c", ((mask & (1ULL << (i * 8 + j))) ? '#' : '-'));
     }
     printf("\n");
   }
@@ -568,44 +608,54 @@ void printBitBoard(struct BitBoard b)
   printf("+---+---+---+---+---+---+---+---+\n");
 }
 
-struct BitBoard kiwipete() {
+struct BitBoard kiwipete()
+{
   struct BitBoard b;
   b.c_rights = 15;
   b.enpassant = 8;
   b.ply_count = 0;
-  b.pieces[0]  = 0x000000100800E700ULL;
-  b.pieces[1]  = 0x00B40A0040010000ULL;
-  b.pieces[2]  = 0x0000000800200000ULL;
-  b.pieces[3]  = 0x0000440000000000ULL;
-  b.pieces[4]  = 0x0000000000001800ULL;
-  b.pieces[5]  = 0x0002800000000000ULL;
-  b.pieces[6]  = 0x0000000000000081ULL;
-  b.pieces[7]  = 0x8100000000000000ULL;
-  b.pieces[8]  = 0x0000000000040000ULL;
-  b.pieces[9]  = 0x0008000000000000ULL;
+  b.pieces[0] = 0x000000100800E700ULL;
+  b.pieces[1] = 0x00B40A0040010000ULL;
+  b.pieces[2] = 0x0000000800200000ULL;
+  b.pieces[3] = 0x0000440000000000ULL;
+  b.pieces[4] = 0x0000000000001800ULL;
+  b.pieces[5] = 0x0002800000000000ULL;
+  b.pieces[6] = 0x0000000000000081ULL;
+  b.pieces[7] = 0x8100000000000000ULL;
+  b.pieces[8] = 0x0000000000040000ULL;
+  b.pieces[9] = 0x0008000000000000ULL;
   b.pieces[10] = 0x0000000000000008ULL;
   b.pieces[11] = 0x0800000000000000ULL;
 
   return b;
 }
 
-void addPerftData(struct PerftData* a, struct PerftData b){
+void addPerftData(struct PerftData *a, struct PerftData b)
+{
   a->nodes += b.nodes;
   a->captures += b.captures;
   a->castles += b.castles;
   a->enpassants += b.enpassants;
   a->checks += b.checks;
-  
 }
 
-struct PerftData perftSearch(struct BitBoard* b, int depth) {
-  if (depth == 0) {
+struct PerftData perftSearch(struct BitBoard *b, int depth)
+{
+  if (depth == 0)
+  {
     struct PerftData pd;
     pd.nodes = 1;
     pd.captures = b->last_move_md & 1;
     pd.checks = 0;
     pd.castles = (b->last_move_md & 2) / 2;
     pd.enpassants = (b->last_move & 16384) ? 1 : 0;
+    int k = findKing(b->pieces[((b->ply_count&1) ^ 1) + 10]);
+    if (squareAttackedBy(b, k, 1,(b->ply_count+1)&1)){
+      printf("ERROR: king capturable. Last move: %d,%d\n",b->last_move&63,(b->last_move/64)%64);
+      printBitBoard(*b);
+      printf("masks: diag - %lx | antidiag - %lx | rank - %lx | file = %lx\n", diagonals[k], antidiagonals[k], ranks[k], files[k]);
+    }
+
     return pd;
   }
   struct PerftData count;
@@ -616,14 +666,16 @@ struct PerftData perftSearch(struct BitBoard* b, int depth) {
   count.enpassants = 0;
   struct BitBoard successors[500];
   int num = genMoves(b, successors, 0, 0);
-  for (int i = 0; i < num; i++) {
-    addPerftData(&count, perftSearch(successors+i, depth-1));
+  for (int i = 0; i < num; i++)
+  {
+    addPerftData(&count, perftSearch(successors + i, depth - 1));
   }
   return count;
 }
 
-uint64_t perft(struct BitBoard b, int depth) {
-  //printBitBoard(b);
+uint64_t perft(struct BitBoard b, int depth)
+{
+  // printBitBoard(b);
 
   struct PerftData pd = perftSearch(&b, depth);
 

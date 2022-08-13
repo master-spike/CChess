@@ -40,5 +40,6 @@ void printMask(uint64_t mask);
 void printBitBoard(struct BitBoard b);
 uint64_t perft(struct BitBoard b, int depth);
 struct BitBoard doMove(struct BitBoard* board, uint16_t move);
+struct BitBoard kiwipete();
 
 #endif

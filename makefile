@@ -18,10 +18,10 @@ OUT = $(ODIR)/main
 all: ${OUT}
 
 $(ODIR)/%.o: $(SDIR)/%.c
-	$(CC) -c $(INC) -o $@ $<
+	$(CC) -g -c $(INC) -o $@ $< -O2
 
 $(OUT): ${OBJS}
-	${CC} ${LINKERFLAG} $^ -o $@
+	${CC} -g ${LINKERFLAG} $^ -o $@ -O2
 
 .PHONY: clean
 

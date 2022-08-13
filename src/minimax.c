@@ -185,7 +185,7 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
         num_best = 1;
       }
       val = (t.val < val) ? t.val : val;
-      if (val <= alpha) break;
+      if (val < alpha) break;
       beta = (val < beta) ? val : beta;
     }
   }
@@ -202,7 +202,7 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
         num_best = 1;
       }
       val = (t.val > val) ? t.val : val;
-      if (val >= beta) break;
+      if (val > beta) break;
       alpha = (val > alpha) ? val : alpha;
     }
   }
