@@ -328,6 +328,339 @@ uint64_t getPinmask(struct BitBoard *b, int i, int k, uint64_t all_pieces)
   return ~0ULL;
 }
 
+int genPawnCaptures(struct BitBoard* board, struct BitBoard* new_boards, int pla, int king, uint64_t check_bc_mask, uint64_t opp_pieces, uint64_t our_pieces, uint64_t pinnable, uint64_t targets) {
+  int count = 0;
+  uint64_t our_pawns = board->pieces[pla];
+  uint64_t our_pawns_promoting = (pla) ? (255ULL << 8) & our_pawns : (255ULL << 48) & our_pawns;
+  uint64_t our_pawns_not_promo = (~our_pawns_promoting) & our_pawns;
+
+  our_pawns = our_pawns_promoting;
+  while(our_pawns) {
+    uint64_t our_pawns_next = our_pawns & (our_pawns-1);
+    int i = findKing(our_pawns ^ our_pawns_next);
+    uint64_t cap_mask = ((pla) ? black_pawn_attack_table[i] : white_pawn_attack_table[i]) & check_bc_mask & opp_pieces;
+    uint64_t pinmask = (pinnable & (our_pawns ^ our_pawns_next)) ? getPinmask(board, i, king, opp_pieces | our_pieces) : ~0ULL;
+    cap_mask &= pinmask;
+    while(cap_mask) {
+      uint64_t cap_mask_next = cap_mask & (cap_mask - 1);
+      int j = findKing(cap_mask ^ cap_mask_next);
+      new_boards[count] = bbDoMove(board, pla, pla+8, i, j);
+      new_boards[count+1] = bbDoMove(board, pla, pla+6, i, j);
+      new_boards[count+2] = bbDoMove(board, pla, pla+4, i, j);
+      new_boards[count+3] = bbDoMove(board, pla, pla+2, i, j);
+      count+=4;
+      cap_mask = cap_mask_next;
+    }
+    our_pawns = our_pawns_next;
+  }
+
+  our_pawns = our_pawns_not_promo;
+  while(our_pawns) {
+    uint64_t our_pawns_next = our_pawns & (our_pawns-1);
+    int i = findKing(our_pawns ^ our_pawns_next);
+    uint64_t cap_mask = ((pla) ? black_pawn_attack_table[i] : white_pawn_attack_table[i]) & check_bc_mask & targets;
+    uint64_t pinmask = (pinnable & (our_pawns ^ our_pawns_next)) ? getPinmask(board, i, king, opp_pieces | our_pieces) : ~0ULL;
+    cap_mask &= pinmask;
+    while(cap_mask) {
+      uint64_t cap_mask_next = cap_mask & (cap_mask - 1);
+      int j = findKing(cap_mask ^ cap_mask_next);
+      new_boards[count] = bbDoMove(board, pla, pla, i, j);
+      count++;
+      cap_mask = cap_mask_next;
+    }
+    our_pawns = our_pawns_next;
+  }
+
+  return count;
+}
+
+int genBlockableCaptures(struct BitBoard* board, struct BitBoard* new_boards, int pla, int king, uint64_t check_bc_mask, uint64_t targets, uint64_t all_pieces, uint64_t pinnable) {
+  // rooks, bishops, queens
+  int count = 0;
+  uint64_t our_bishops = board->pieces[4+pla];
+  uint64_t our_rooks = board->pieces[6+pla];
+  uint64_t our_queens = board->pieces[8+pla];
+
+  while(our_bishops) {
+    uint64_t our_bishops_next = our_bishops & (our_bishops-1);
+    int i = findKing(our_bishops ^ our_bishops_next);
+    uint64_t cap_mask = bishop_table[i] & check_bc_mask & targets;
+    uint64_t pinmask = (pinnable & (our_bishops ^ our_bishops_next)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    cap_mask &= pinmask;
+    while (cap_mask)
+    {
+      uint64_t cap_mask_next = cap_mask & (cap_mask - 1);
+      int j = findKing(cap_mask ^ cap_mask_next);
+      if (!(block_masks[i*64+j] & all_pieces)) {
+        new_boards[count] = bbDoMove(board, pla+4, pla+4, i, j);
+        count++;
+      }
+      cap_mask = cap_mask_next;
+    }
+    our_bishops = our_bishops_next;
+  }
+
+  while(our_rooks) {
+    uint64_t our_rooks_next = our_rooks & (our_rooks-1);
+    int i = findKing(our_rooks ^ our_rooks_next);
+    uint64_t cap_mask = rook_table[i] & check_bc_mask & targets;
+    uint64_t pinmask = (pinnable & (our_rooks_next ^ our_rooks)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    cap_mask &= pinmask;
+    while (cap_mask)
+    {
+      uint64_t cap_mask_next = cap_mask & (cap_mask - 1);
+      int j = findKing(cap_mask ^ cap_mask_next);
+      if (!(block_masks[i*64+j] & all_pieces)) {
+        new_boards[count] = bbDoMove(board, pla+6, pla+6, i, j);
+        count++;
+      }
+      cap_mask = cap_mask_next;
+    }
+    our_rooks = our_rooks_next;
+  }
+
+  while (our_queens)
+  {
+    uint64_t our_queens_next = our_queens & (our_queens-1);
+    int i = findKing(our_queens ^ our_queens_next);
+    uint64_t cap_mask = (rook_table[i] | bishop_table[i]) & check_bc_mask & targets;
+    uint64_t pinmask = (pinnable & (our_queens ^ our_queens_next)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    cap_mask &= pinmask;
+    while (cap_mask)
+    {
+      uint64_t cap_mask_next = cap_mask & (cap_mask - 1);
+      int j = findKing(cap_mask ^ cap_mask_next);
+      if (!(block_masks[i*64+j] & all_pieces)) {
+        new_boards[count] = bbDoMove(board, pla+8, pla+8, i, j);
+        count++;
+      }
+      cap_mask = cap_mask_next;
+    }
+    our_queens = our_queens_next;
+  }
+  
+  return count;
+}
+
+int genKnightCaps(struct BitBoard* board, struct BitBoard* new_boards, int pla, int king, uint64_t check_bc_mask, uint64_t targets, uint64_t all_pieces, uint64_t pinnable) {
+  int count = 0;
+  
+  uint64_t our_knights = board->pieces[2+pla];
+
+  while (our_knights)
+  {
+    uint64_t our_knights_next = our_knights & (our_knights-1);
+    int i = findKing(our_knights ^ our_knights_next);
+    uint64_t cap_mask = knight_table[i] & check_bc_mask & targets;
+    uint64_t pinmask = (pinnable & (our_knights ^ our_knights_next)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    cap_mask &= pinmask;
+    while (cap_mask)
+    {
+      uint64_t cap_mask_next = cap_mask & (cap_mask - 1);
+      int j = findKing(cap_mask ^ cap_mask_next);
+      new_boards[count] = bbDoMove(board, pla+2, pla+2, i, j);
+      count++;
+      cap_mask = cap_mask_next;
+    }
+    our_knights = our_knights_next;
+  }
+
+  return count;
+}
+
+int genKingCaptures(struct BitBoard* board, struct BitBoard* new_boards, int pla, int king, uint64_t targets, uint64_t king_move_mask) {
+  int count = 0;
+  
+  uint64_t dests = targets & king_move_mask;
+  while(dests) {
+    uint64_t d_next = dests & (dests-1);
+    int j = findKing(d_next ^ dests);
+    new_boards[count] = bbDoMove(board, 10+pla, 10+pla, king, j);
+    count++;
+    dests = d_next;
+  }
+
+  return count;
+}
+
+int genPawnNonCaps(struct BitBoard* board, struct BitBoard* new_boards, int pla, int king, uint64_t check_bc_mask, uint64_t all_pieces, uint64_t pinnable, uint64_t filter) {
+
+  int count = 0;
+  uint64_t our_pawns = board->pieces[pla] & filter;
+  uint64_t our_pawns_promoting = (pla) ? (255ULL << 8) & our_pawns : (255ULL << 48) & our_pawns;
+  uint64_t our_pawns_home_rank = (pla) ? (255ULL << 48) & our_pawns : (255ULL << 8) & our_pawns;
+  uint64_t our_pawns_not_promo = (~our_pawns_promoting) & ~(our_pawns_home_rank) & our_pawns;
+
+  our_pawns = our_pawns_promoting;
+  while(our_pawns) {
+    uint64_t our_pawns_next = our_pawns & (our_pawns-1);
+    int i = findKing(our_pawns ^ our_pawns_next);
+    uint64_t push_mask = ((pla) ? black_pawn_move_table[i] : white_pawn_move_table[i]) & check_bc_mask & ~all_pieces;
+    uint64_t pinmask = (pinnable & (our_pawns ^ our_pawns_next)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    push_mask &= pinmask;
+    while(push_mask) {
+      uint64_t push_mask_next = push_mask & (push_mask - 1);
+      int j = findKing(push_mask ^ push_mask_next);
+      new_boards[count] = bbDoMove(board, pla, pla+8, i, j);
+      new_boards[count+1] = bbDoMove(board, pla, pla+6, i, j);
+      new_boards[count+2] = bbDoMove(board, pla, pla+4, i, j);
+      new_boards[count+3] = bbDoMove(board, pla, pla+2, i, j);
+      count+=4;
+      push_mask = push_mask_next;
+    }
+    our_pawns = our_pawns_next;
+  }
+
+  our_pawns = our_pawns_home_rank;
+  while(our_pawns) {
+    uint64_t our_pawns_next = our_pawns & (our_pawns-1);
+    int i = findKing(our_pawns ^ our_pawns_next);
+    uint64_t push_mask = ((pla) ? black_pawn_move_table[i] : white_pawn_move_table[i]) & check_bc_mask & ~all_pieces;
+    uint64_t pinmask = (pinnable & (our_pawns ^ our_pawns_next)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    push_mask &= pinmask;
+    while(push_mask) {
+      uint64_t push_mask_next = push_mask & (push_mask - 1);
+      int j = findKing(push_mask ^ push_mask_next);
+      if (!(block_masks[64*i + j] & all_pieces)) {
+        new_boards[count] = bbDoMove(board, pla, pla, i, j);
+        count++;
+      }
+      push_mask = push_mask_next;
+    }
+    our_pawns = our_pawns_next;
+  }
+
+  our_pawns = our_pawns_not_promo;
+  while(our_pawns) {
+    uint64_t our_pawns_next = our_pawns & (our_pawns-1);
+    int i = findKing(our_pawns ^ our_pawns_next);
+    uint64_t push_mask = ((pla) ? black_pawn_move_table[i] : white_pawn_move_table[i]) & check_bc_mask & ~all_pieces;
+    uint64_t pinmask = (pinnable & (our_pawns ^ our_pawns_next)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    push_mask &= pinmask;
+    while(push_mask) {
+      uint64_t push_mask_next = push_mask & (push_mask - 1);
+      int j = findKing(push_mask ^ push_mask_next);
+      new_boards[count] = bbDoMove(board, pla, pla, i, j);
+      count++;
+      push_mask = push_mask_next;
+    }
+    our_pawns = our_pawns_next;
+  }
+
+
+
+  return count;
+
+}
+
+int genBlockableNonCaps(struct BitBoard* board, struct BitBoard* new_boards, int pla, int king, uint64_t check_bc_mask, uint64_t all_pieces, uint64_t pinnable) {
+  // rooks, bishops, queens
+  int count = 0;
+  uint64_t our_bishops = board->pieces[4+pla];
+  uint64_t our_rooks = board->pieces[6+pla];
+  uint64_t our_queens = board->pieces[8+pla];
+  
+  while(our_bishops) {
+    uint64_t our_bishops_next = our_bishops & (our_bishops-1);
+    int i = findKing(our_bishops ^ our_bishops_next);
+    uint64_t move_mask = bishop_table[i] & check_bc_mask & ~all_pieces;
+    uint64_t pinmask = (pinnable & (our_bishops ^ our_bishops_next)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    move_mask &= pinmask;
+    while (move_mask)
+    {
+      uint64_t move_mask_next = move_mask & (move_mask - 1);
+      int j = findKing(move_mask ^ move_mask_next);
+      if (!(block_masks[i*64+j] & all_pieces)) {
+        new_boards[count] = bbDoMove(board, pla+4, pla+4, i, j);
+        count++;
+      }
+      move_mask = move_mask_next;
+    }
+    our_bishops = our_bishops_next;
+  }
+
+  while(our_rooks) {
+    uint64_t our_rooks_next = our_rooks & (our_rooks-1);
+    int i = findKing(our_rooks ^ our_rooks_next);
+    uint64_t move_mask = rook_table[i] & check_bc_mask & ~all_pieces;
+    uint64_t pinmask = (pinnable & (our_rooks_next ^ our_rooks)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    move_mask &= pinmask;
+    while (move_mask)
+    {
+      uint64_t move_mask_next = move_mask & (move_mask - 1);
+      int j = findKing(move_mask ^ move_mask_next);
+      if (!(block_masks[i*64+j] & all_pieces)) {
+        new_boards[count] = bbDoMove(board, pla+6, pla+6, i, j);
+        count++;
+      }
+      move_mask = move_mask_next;
+    }
+    our_rooks = our_rooks_next;
+  }
+
+  while (our_queens)
+  {
+    uint64_t our_queens_next = our_queens & (our_queens-1);
+    int i = findKing(our_queens ^ our_queens_next);
+    uint64_t move_mask = (rook_table[i] | bishop_table[i]) & check_bc_mask & ~all_pieces;
+    uint64_t pinmask = (pinnable & (our_queens ^ our_queens_next)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    move_mask &= pinmask;
+    while (move_mask)
+    {
+      uint64_t move_mask_next = move_mask & (move_mask - 1);
+      int j = findKing(move_mask ^ move_mask_next);
+      if (!(block_masks[i*64+j] & all_pieces)) {
+        new_boards[count] = bbDoMove(board, pla+8, pla+8, i, j);
+        count++;
+      }
+      move_mask = move_mask_next;
+    }
+    our_queens = our_queens_next;
+  }
+  
+  return count;
+}
+
+int genKnightNonCaps(struct BitBoard* board, struct BitBoard* new_boards, int pla, int king, uint64_t check_bc_mask, uint64_t all_pieces, uint64_t pinnable) {
+  int count = 0;
+  
+  uint64_t our_knights = board->pieces[2+pla];
+
+  while (our_knights)
+  {
+    uint64_t our_knights_next = our_knights & (our_knights-1);
+    int i = findKing(our_knights ^ our_knights_next);
+    uint64_t cap_mask = knight_table[i] & check_bc_mask & ~all_pieces;
+    uint64_t pinmask = (pinnable & (our_knights ^ our_knights_next)) ? getPinmask(board, i, king, all_pieces) : ~0ULL;
+    cap_mask &= pinmask;
+    while (cap_mask)
+    {
+      uint64_t cap_mask_next = cap_mask & (cap_mask - 1);
+      int j = findKing(cap_mask ^ cap_mask_next);
+      new_boards[count] = bbDoMove(board, pla+2, pla+2, i, j);
+      count++;
+      cap_mask = cap_mask_next;
+    }
+    our_knights = our_knights_next;
+  }
+  return count;
+}
+
+int genKingNonCaptures(struct BitBoard* board, struct BitBoard* new_boards, int pla, int king, uint64_t all_pieces, uint64_t king_move_mask) {
+  int count = 0;
+  
+  uint64_t dests =  king_move_mask & ~all_pieces;
+  while(dests) {
+    uint64_t d_next = dests & (dests-1);
+    int j = findKing(d_next ^ dests);
+    new_boards[count] = bbDoMove(board, 10+pla, 10+pla, king, j);
+    count++;
+    dests = d_next;
+  }
+
+  return count;
+}
+
 int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, int just_one)
 {
   int count = 0;
@@ -336,11 +669,16 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
   int our_king = findKing(board->pieces[10 + pla]);
 
   uint64_t check_bc_mask = checkBlockCapMask(board);
-  uint64_t king_los_mask = squareInLosOf(board, our_king);
   uint64_t king_move_mask = kingMoveMask(board);
 
   uint64_t our_pieces = board->pieces[pla] | board->pieces[pla + 2] | board->pieces[pla + 4] | board->pieces[pla + 6] | board->pieces[pla + 8] | board->pieces[pla + 10];
   uint64_t opp_pieces = board->pieces[opp] | board->pieces[opp + 2] | board->pieces[opp + 4] | board->pieces[opp + 6] | board->pieces[opp + 8] | board->pieces[opp + 10];
+
+  uint64_t cap_tgts = (~check_bc_mask || !cap_only) ? opp_pieces : 0;
+
+  for (int i = 5; i > cap_only && i >= 1; i--) {
+    cap_tgts |= board->pieces[opp+2*i-2];
+  }
 
   uint64_t co_mask = (~check_bc_mask || (!cap_only)) ? ~0ULL : opp_pieces; // this ensures if we are doing captures only
   if (~check_bc_mask)
@@ -356,6 +694,7 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
   uint64_t b_bits = board->pieces[pla + 4];
   uint64_t q_bits = board->pieces[pla + 6];
   uint64_t k_bits = board->pieces[pla + 8];
+  
   /*
   while (p_bits)
   {
@@ -365,12 +704,28 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
     uint64_t capture_mask = opp_pieces & ((pla) ? black_pawn_attack_table[i] : white_pawn_attack_table[i]);
   }*/
 
-  uint64_t pinnable = ~0ULL;
+  uint64_t pinnable = 0ULL;
   if (diagonals[our_king] & (board->pieces[4+opp] | board->pieces[8+opp])) pinnable |= diagonals[our_king];
   if (antidiagonals[our_king] & (board->pieces[4+opp] | board->pieces[8+opp])) pinnable |= antidiagonals[our_king];
   if (ranks[our_king] & (board->pieces[6+opp] | board->pieces[8+opp])) pinnable |= ranks[our_king];
   if (files[our_king] & (board->pieces[6+opp] | board->pieces[8+opp])) pinnable |= files[our_king];
+  
+  pinnable &= ~(1ULL << our_king);
 
+  uint64_t promo_filter = (check_bc_mask == ~0ULL && cap_only) ? (255ULL << (8 + 40*opp)) : ~0ULL;
+  
+  count += genPawnCaptures(board, new_boards+count, pla, our_king, check_bc_mask, opp_pieces, our_pieces, pinnable, cap_tgts);
+  count += genKnightCaps(board, new_boards+count, pla, our_king, check_bc_mask, cap_tgts, opp_pieces | our_pieces, pinnable);
+  count += genBlockableCaptures(board, new_boards+count, pla, our_king, check_bc_mask, cap_tgts, opp_pieces | our_pieces, pinnable);
+  count += genKingCaptures(board, new_boards+count, pla, our_king, cap_tgts, king_move_mask);
+  if (!cap_only || check_bc_mask != ~0ULL) {
+    count += genBlockableNonCaps(board, new_boards+count, pla, our_king, check_bc_mask, opp_pieces | our_pieces, pinnable);
+    count += genKnightNonCaps(board, new_boards+count, pla, our_king, check_bc_mask, opp_pieces | our_pieces, pinnable);
+    count += genPawnNonCaps(board, new_boards+count, pla, our_king, check_bc_mask, opp_pieces | our_pieces, pinnable, promo_filter);
+    count += genKingNonCaptures(board, new_boards+count, pla, our_king, opp_pieces | our_pieces, king_move_mask);
+  }
+
+  /*
   for (int i = 0; i < 64; i++)
   {
 
@@ -436,7 +791,7 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
         new_boards[count + 3] = bbDoMove(board, i_piece, i_piece + 8, i, j);
         count += 4;
       }
-      else if (!cap_only || ~check_bc_mask || getPieceAt(board, j, opp) >= i_piece)
+      else
       { // not promoting
         new_boards[count] = bbDoMove(board, i_piece, i_piece, i, j);
         count++;
@@ -447,7 +802,7 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
     if (just_one && count > 0)
       return count;
   }
-
+  */
   // en passant and castles dealt with here. NOTE that it is impossible to double check with a pawn advancement due to geometry
   // so if an enpassantable pawn is checking the king, en passant auto-resolves the check. It is also impossible to castle through check
   // so we need to use another mask to check this. can't castle out of check but we can just check that check_bc_mask == ~0ULL

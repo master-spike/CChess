@@ -65,6 +65,8 @@ void sortMoves(int l, int h, struct Move* moves, struct Chessboard* board, struc
 
 struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double beta) {
   
+  nodes_in_quescience++;
+
   struct BitBoard nextboards[50]; // this seems like a reasonable upper bound for the number of legal captures
 
   double b_eval = evaluate(b, alpha, beta);
@@ -135,6 +137,8 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
 
 struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double alpha, double beta) {
   
+  nodes_in_minimax++;
+
   struct BitBoard nextboards[400]; // this seems like a reasonable upper bound for the number of legal moves
   int n_moves = genMoves(b, nextboards, 0, 1);
 
