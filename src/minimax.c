@@ -159,7 +159,7 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
   }
   
 
-  
+  // if no legal moves check whether its checkmate or stalemate
   if (n_moves == 0) {
     if (squareAttackedBy(b, findKing(b->pieces[10+(b->ply_count&1)]), 0, b->ply_count&1)) {
       m.val = (b->ply_count & 1) ? MAX : MIN;
@@ -171,14 +171,6 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
   }
 
   n_moves = genMoves(b, nextboards, 0, 0);
-
-  // possibly sort by most forcing moves
-  /*
-  if (d > 5) {
-    sortMoves(0, n_moves, nextmoves, &b, params);
-  }
-  */
-
 
   int num_best = 0;
   uint16_t best_moves[400];

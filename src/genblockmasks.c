@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+// this program generated the blockmask that was hard-coded into patterns.c
+
 int diff(int x, int y) {
     return (x > y) ? y - x : x - y;
 }
