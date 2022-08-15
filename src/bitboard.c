@@ -940,8 +940,8 @@ void printBitBoard(struct BitBoard b)
 
   printf("Last move: %d,%d | %s to move:\n", b.last_move % 64, (b.last_move / 64) % 64, col_str);
 
-  char p = ' ';
-  char q = '/';
+  char p = '/';
+  char q = ' ';
   char t;
 
   for (int i = 56; i >= 0; i -= 8)
