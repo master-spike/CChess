@@ -16,6 +16,9 @@ void swapDouble(double* d1, double* d2) {
   *d2 = t;
 }
 
+uint64_t nodes_in_minimax;
+uint64_t nodes_in_quescience;
+
 /*
 void sortMovesQsort(int l, int h, struct Move* moves, double* evals) {
   if (h - l <= 1) return;
