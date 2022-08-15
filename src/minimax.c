@@ -1,5 +1,8 @@
 #include <stdlib.h>
+#include <time.h>
 #include "minimax.h"
+
+#define DELTA_CUTOFF 192.0
 
 void swapBBoards(struct BitBoard* b1, struct BitBoard* b2) {
   struct BitBoard t = *b1;
@@ -66,18 +69,18 @@ void sortMoves(int l, int h, struct Move* moves, struct Chessboard* board, struc
 struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double beta) {
   
   nodes_in_quescience++;
-
-  struct BitBoard nextboards[50]; // this seems like a reasonable upper bound for the number of legal captures
+  
+  struct BitBoard nextboards[400]; // this seems like a reasonable upper bound for the number of legal captures
 
   double b_eval = evaluate(b, alpha, beta);
   
   int cap_restrict = 1;
   double delta = 0;
   if (b->ply_count&1) {
-    delta = b_eval - 240 - beta;
+    delta = b_eval - DELTA_CUTOFF - beta;
   }
   else {
-    delta = alpha + b_eval - 240;
+    delta = alpha + b_eval - DELTA_CUTOFF;
   }
 
   if (delta > 100.0) cap_restrict++;
@@ -85,7 +88,7 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
   if (delta > 330) cap_restrict++;
   if (delta > 500) cap_restrict++;
 
-  int n_moves = genMoves(b, nextboards, cap_restrict, 1);
+  int n_moves = genMoves(b, nextboards, 0, 1);
 
   struct MinimaxReturn m;
 
@@ -135,15 +138,18 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
   return m;
 }
 
-struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double alpha, double beta) {
+struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double alpha, double beta, clock_t max_time) {
   
   nodes_in_minimax++;
+  
+
 
   struct BitBoard nextboards[400]; // this seems like a reasonable upper bound for the number of legal moves
   int n_moves = genMoves(b, nextboards, 0, 1);
 
   struct MinimaxReturn m;
   m.move = 0;
+  if (clock() > max_time && max_time != 0) return m;
   if (d == 0 && n_moves != 0) {
     m = quescienceSearch(b, alpha, beta);
     return m;
@@ -179,7 +185,7 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
   if (b->ply_count&1) { // minimizing player
     val = MAX;
     for (int i = 0; i < n_moves; i++) {
-      struct MinimaxReturn t = minimaxAlphaBeta(nextboards+i, d-1, alpha, beta);
+      struct MinimaxReturn t = minimaxAlphaBeta(nextboards+i, d-1, alpha, beta, max_time);
       if (t.val == val) {
         best_moves[num_best] = nextboards[i].last_move;
         num_best++;
@@ -196,7 +202,7 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
   else { // maximising player
     val = MIN;
     for (int i = n_moves - 1; i >= 0; i--) {
-      struct MinimaxReturn t = minimaxAlphaBeta(nextboards+i, d-1, alpha, beta);
+      struct MinimaxReturn t = minimaxAlphaBeta(nextboards+i, d-1, alpha, beta, max_time);
       if (t.val == val) {
         best_moves[num_best] = nextboards[i].last_move;
         num_best++;
@@ -213,10 +219,24 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
   
 
   m.val = val;
-  m.move = best_moves[rand() % num_best];
+  m.move = best_moves[(uint8_t) (rand() % num_best)];
   return m;
 }
 
+struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_time) {
+  int depth = 2;
+  clock_t start_time = clock();
+  clock_t current_time = start_time;
 
 
+  struct MinimaxReturn m;
+  struct MinimaxReturn m_next = minimaxAlphaBeta(&board, 1, MIN, MAX, 0);
+  while(current_time - start_time < max_time) {
+    depth++;
+    m = m_next;
+    m_next = minimaxAlphaBeta(&board, depth, MIN, MAX, start_time + max_time);
+    current_time = clock();
+  }
+  return m;
+}
 

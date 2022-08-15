@@ -93,7 +93,7 @@ struct BitBoard bbDoCastles(struct BitBoard *b, int kingside)
   newboard.ply_count++;
   newboard.pieces[k_p] ^= (ki | kj);
   newboard.pieces[r_p] ^= (ri | rj);
-  newboard.last_move = ki + 64 * kj;
+  newboard.last_move = findKing(ki) + 64 * findKing(kj);
   newboard.last_move_md = 2;
   return newboard;
 }
@@ -715,14 +715,22 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
   uint64_t promo_filter = (check_bc_mask == ~0ULL && cap_only) ? (255ULL << (8 + 40*opp)) : ~0ULL;
   
   count += genPawnCaptures(board, new_boards+count, pla, our_king, check_bc_mask, opp_pieces, our_pieces, pinnable, cap_tgts);
+  if (just_one && count) return count;
   count += genKnightCaps(board, new_boards+count, pla, our_king, check_bc_mask, cap_tgts, opp_pieces | our_pieces, pinnable);
+  if (just_one && count) return count;
   count += genBlockableCaptures(board, new_boards+count, pla, our_king, check_bc_mask, cap_tgts, opp_pieces | our_pieces, pinnable);
+  if (just_one && count) return count;
   count += genKingCaptures(board, new_boards+count, pla, our_king, cap_tgts, king_move_mask);
+  if (just_one && count) return count;
   if (!cap_only || check_bc_mask != ~0ULL) {
     count += genBlockableNonCaps(board, new_boards+count, pla, our_king, check_bc_mask, opp_pieces | our_pieces, pinnable);
+    if (just_one && count) return count;
     count += genKnightNonCaps(board, new_boards+count, pla, our_king, check_bc_mask, opp_pieces | our_pieces, pinnable);
+    if (just_one && count) return count;
     count += genPawnNonCaps(board, new_boards+count, pla, our_king, check_bc_mask, opp_pieces | our_pieces, pinnable, promo_filter);
+    if (just_one && count) return count;
     count += genKingNonCaptures(board, new_boards+count, pla, our_king, opp_pieces | our_pieces, king_move_mask);
+    if (just_one && count) return count;
   }
 
   /*
@@ -840,7 +848,7 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
       }
     }
   }
-
+  if (just_one && count) return count;
   // now generate en passants
   if (board->enpassant < 8)
   {
@@ -930,7 +938,7 @@ void printBitBoard(struct BitBoard b)
 
   char *col_str = (b.ply_count & 1) ? str_b : str_w;
 
-  printf("%s to move:\n", col_str);
+  printf("Last move: %d,%d | %s to move:\n", b.last_move % 64, (b.last_move / 64) % 64, col_str);
 
   char p = ' ';
   char q = '/';

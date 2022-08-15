@@ -65,22 +65,22 @@ double evaluate(struct BitBoard *board, double alpha, double beta)
   if (light_squares & board->pieces[5] && dark_squares & board->pieces[5])
     total -= bishop_pair;
 
-
-
+  if (total <= alpha - 340.0) return total;
+  if (total >= beta + 340.0) return total;
 
   for (int i = 0; i < 64; i++) {
-    int r = 56 + i % 8 - i;
-    int bi = r + i % 8;
+    int r = i/8;
+    int bi = (7-r)*8 + i % 8;
     total += piece_square_pawn[63-i]*((board->pieces[0] >> i) & 1);
     total += piece_square_knight[63-i]*((board->pieces[2] >> i) & 1);
     total += piece_square_bishop[63-i]*((board->pieces[4] >> i) & 1);
     total += piece_square_rook[63-i]*((board->pieces[6] >> i) & 1);
     total += piece_square_queen[63-i]*((board->pieces[8] >> i) & 1);
-    total -= piece_square_pawn[bi]*((board->pieces[1] >> i) & 1);
-    total -= piece_square_knight[bi]*((board->pieces[3] >> i) & 1);
-    total -= piece_square_bishop[bi]*((board->pieces[5] >> i) & 1);
-    total -= piece_square_rook[bi]*((board->pieces[7] >> i) & 1);
-    total -= piece_square_queen[bi]*((board->pieces[9] >> i) & 1);
+    total -= piece_square_pawn[63-bi]*((board->pieces[1] >> i) & 1);
+    total -= piece_square_knight[63-bi]*((board->pieces[3] >> i) & 1);
+    total -= piece_square_bishop[63-bi]*((board->pieces[5] >> i) & 1);
+    total -= piece_square_rook[63-bi]*((board->pieces[7] >> i) & 1);
+    total -= piece_square_queen[63-bi]*((board->pieces[9] >> i) & 1);
   }
   int whitekingpos = findKing(board->pieces[10]);
   int blackkingpos = findKing(board->pieces[11]);
@@ -90,8 +90,8 @@ double evaluate(struct BitBoard *board, double alpha, double beta)
   total += 35 * (endgame_interp * centre_dist[whitekingpos] + (1-endgame_interp) * corner_dist[whitekingpos]);
   total -= 35 * (endgame_interp * centre_dist[blackkingpos] + (1-endgame_interp) * corner_dist[blackkingpos]);
 
-  if (total <= alpha - 300.0) return total;
-  if (total >= beta + 300.0) return total;
+  if (total <= alpha - 170.0) return total;
+  if (total >= beta + 170.0) return total;
 
   int sq_control[64];
   
