@@ -95,11 +95,35 @@ double evaluate(struct BitBoard *board, double alpha, double beta)
 
   int sq_control[64];
   
-  
+
+
   for (int i = 0; i < 64; i++)
   {
     sq_control[i] = countBits(squareAttackedBy(board, i, 1, 1)) - countBits(squareAttackedBy(board, i, 1, 0));
     sq_control[i] += sgn(sq_control[i]); // diminishing returns
+  }
+
+  uint64_t bksm = board->pieces[1] | king_att_table[findKing(board->pieces[1])];
+  uint64_t wksm = board->pieces[0] | king_att_table[findKing(board->pieces[0])]; 
+  
+  while (bksm)
+  {
+    uint64_t bksm_n = bksm & (bksm - 1);
+    int i = findKing(bksm ^ bksm_n);
+    if (sq_control[i] >= 0) {
+      total += 50*(1+sq_control[i]);
+    }
+    bksm = bksm_n;
+  }
+
+  while (wksm)
+  {
+    uint64_t wksm_n = wksm & (wksm - 1);
+    int i = findKing(wksm ^ wksm_n);
+    if (sq_control[i] <= 0) {
+      total += 50*(sq_control[i] - 1);
+    }
+    wksm = wksm_n;
   }
 
   for (int i = 0; i < 64; i++) {
