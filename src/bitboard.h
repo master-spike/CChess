@@ -24,6 +24,7 @@ struct PerftData {
 };
 
 int countBits(uint64_t n);
+struct BitBoard bbNullMove(struct BitBoard *b);
 struct BitBoard bbDoMove(struct BitBoard *b, int sp, int ep, int sqi, int sqj);
 struct BitBoard bbDoCastles(struct BitBoard *b, int kingside);
 struct BitBoard bbDoEnpassant(struct BitBoard *b, int pi, int pj, int ep);

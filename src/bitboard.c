@@ -33,6 +33,15 @@ uint64_t allPieces(struct BitBoard *b)
   return v;
 }
 
+struct BitBoard bbNullMove(struct BitBoard *b) {
+  struct BitBoard newboard = *b;
+  newboard.ply_count++;
+  newboard.enpassant = 8;
+  newboard.last_move = 0;
+  newboard.last_move_md = 16;
+  return newboard;
+}
+
 struct BitBoard bbDoMove(struct BitBoard *b, int sp, int ep, int sqi, int sqj)
 {
 
