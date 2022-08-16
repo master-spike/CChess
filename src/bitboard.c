@@ -849,7 +849,9 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
     }
   }
   if (just_one && count) return count;
-  // now generate en passants
+  
+  // now generate en passants. Note that if our king and an enemy rook/queen is on the same rank and either side of the pawns
+  // then we must check that en passant wont discover our king.
   if (board->enpassant < 8)
   {
     int targ_sq = (opp) ? board->enpassant + 40 : board->enpassant + 16;
@@ -862,8 +864,20 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
       int i = findKing(ep_pawn_mask);
 
       uint64_t pinmask = (pinnable & (1ULL << i)) ? getPinmask(board, i, our_king, opp_pieces | our_pieces) : ~0ULL;
-
-      if (pinmask & (1ULL << targ_sq))
+      uint64_t orth_threats = ranks[our_king] & (board->pieces[opp+6] | board->pieces[opp+8]);
+      uint64_t ot_blockers = (our_pieces | opp_pieces) & ~((1ULL << i) | (1ULL << targ_pawn));
+      
+      int flag = 1;
+      while(orth_threats) { // check for cases where en passant would discover our king
+        uint64_t oth_new = orth_threats ^ (orth_threats - 1);
+        if (!(block_masks[our_king*64 + findKing(oth_new ^ orth_threats)] & ot_blockers)) {
+          flag = 0;
+          break;
+        }
+        orth_threats = oth_new; 
+      }
+      
+      if (pinmask & (1ULL << targ_sq) && flag)
       {
         new_boards[count] = bbDoEnpassant(board, i, targ_sq, targ_pawn);
         count++;

@@ -218,8 +218,8 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
   return m;
 }
 
-struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_time) {
-  int depth = 2;
+struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_time, unsigned int* depth) {
+  unsigned int d = 2;
   clock_t start_time = clock();
   clock_t current_time = start_time;
 
@@ -227,11 +227,12 @@ struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_
   struct MinimaxReturn m;
   struct MinimaxReturn m_next = minimaxAlphaBeta(&board, 1, MIN, MAX, 0);
   while(current_time - start_time < max_time) {
-    depth++;
+    d++;
     m = m_next;
-    m_next = minimaxAlphaBeta(&board, depth, MIN, MAX, start_time + max_time);
+    m_next = minimaxAlphaBeta(&board, d, MIN, MAX, start_time + max_time);
     current_time = clock();
   }
+  *depth = d-1;
   return m;
 }
 
