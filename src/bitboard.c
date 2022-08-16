@@ -1,7 +1,4 @@
-#include <stdint.h>
-#include <stdio.h>
 #include "bitboard.h"
-#include "patterns.h"
 
 const uint64_t default_pieces[12] = {65280ULL, 71776119061217280ULL,
                                      66ULL, 4755801206503243776ULL,
@@ -39,6 +36,9 @@ struct BitBoard bbNullMove(struct BitBoard *b) {
   newboard.enpassant = 8;
   newboard.last_move = 0;
   newboard.last_move_md = 16;
+  newboard.hashcode ^= player_seed;
+  newboard.hashcode ^= ep_seeds[b->enpassant];
+  newboard.hashcode ^= ep_seeds[8];
   return newboard;
 }
 
@@ -49,13 +49,17 @@ struct BitBoard bbDoMove(struct BitBoard *b, int sp, int ep, int sqi, int sqj)
 
   newboard.pieces[sp] &= ~(1ULL << sqi);
   newboard.pieces[ep] |= (1ULL << sqj);
+  newboard.hashcode ^= piece_seeds[sp*64 + sqi];
+  newboard.hashcode ^= piece_seeds[ep*64 + sqj];
   for (int i = 0; i < ep; i++)
   {
     newboard.pieces[i] &= ~(1ULL << sqj);
+    if ((1ULL<<sqj) & b->pieces[i]) newboard.hashcode ^= piece_seeds[i*64 + sqj];
   }
   for (int i = ep + 1; i < 12; i++)
   {
     newboard.pieces[i] &= ~(1ULL << sqj);
+    if ((1ULL<<sqj) & b->pieces[i]) newboard.hashcode ^= piece_seeds[i*64 + sqj];
   }
   newboard.ply_count++;
   newboard.enpassant = 8;
@@ -78,6 +82,12 @@ struct BitBoard bbDoMove(struct BitBoard *b, int sp, int ep, int sqi, int sqj)
     newboard.c_rights &= (uint8_t)~4U;
   if (sqi == 63 || sqj == 63)
     newboard.c_rights &= (uint8_t)~8U;
+
+  newboard.hashcode ^= ep_seeds[b->enpassant];
+  newboard.hashcode ^= ep_seeds[newboard.enpassant];
+  newboard.hashcode ^= cr_seeds[b->c_rights & 15];
+  newboard.hashcode ^= cr_seeds[newboard.c_rights & 15];
+  newboard.hashcode ^= player_seed;
 
   newboard.last_move_md = 0;
   newboard.last_move_md += ((allPieces(b) & (1ULL << sqj)) ? 1 : 0);
@@ -104,6 +114,17 @@ struct BitBoard bbDoCastles(struct BitBoard *b, int kingside)
   newboard.pieces[r_p] ^= (ri | rj);
   newboard.last_move = findKing(ki) + 64 * findKing(kj);
   newboard.last_move_md = 2;
+
+  newboard.hashcode ^= piece_seeds[k_p*64 + findKing(ki)];
+  newboard.hashcode ^= piece_seeds[k_p*64 + findKing(kj)];
+  newboard.hashcode ^= piece_seeds[r_p*64 + findKing(ri)];
+  newboard.hashcode ^= piece_seeds[r_p*64 + findKing(rj)];
+  newboard.hashcode ^= ep_seeds[b->enpassant];
+  newboard.hashcode ^= ep_seeds[8];
+  newboard.hashcode ^= cr_seeds[b->c_rights & 15];
+  newboard.hashcode ^= cr_seeds[newboard.c_rights & 15];
+  newboard.hashcode ^= player_seed;
+
   return newboard;
 }
 
@@ -118,6 +139,14 @@ struct BitBoard bbDoEnpassant(struct BitBoard *b, int pi, int pj, int ep)
   newboard.ply_count++;
   newboard.last_move = pi + 64 * pj + 16384;
   newboard.last_move_md = 1;
+  
+  newboard.hashcode ^= piece_seeds[player*64 + pi];
+  newboard.hashcode ^= piece_seeds[player*64 + pj];
+  newboard.hashcode ^= piece_seeds[opp*64 + ep];
+  newboard.hashcode ^= ep_seeds[b->enpassant];
+  newboard.hashcode ^= ep_seeds[8];
+  newboard.hashcode ^= player_seed;
+
   return newboard;
 }
 
@@ -992,6 +1021,8 @@ void printBitBoard(struct BitBoard b)
     q = t;
   }
   printf("+---+---+---+---+---+---+---+---+\n");
+  printf("Stored hashcode %x | ", b.hashcode);
+  printf("generated: %x\n", hashcode(&b));
 }
 
 struct BitBoard kiwipete()
@@ -1027,6 +1058,7 @@ void addPerftData(struct PerftData *a, struct PerftData b)
 
 struct PerftData perftSearch(struct BitBoard *b, int depth)
 {
+  
   if (depth == 0)
   {
     struct PerftData pd;
@@ -1041,6 +1073,9 @@ struct PerftData perftSearch(struct BitBoard *b, int depth)
       printBitBoard(*b);
       printf("masks: diag - %lx | antidiag - %lx | rank - %lx | file = %lx\n", diagonals[k], antidiagonals[k], ranks[k], files[k]);
     }
+    uint32_t hc = b->hashcode;
+    if (hashcode(b) != hc) printf("ERROR: wrong hashcode: %x,%x | type: %lu\n",hc,b->hashcode, pd.captures + pd.castles*2 + pd.enpassants*4);
+    
 
     return pd;
   }
@@ -1059,10 +1094,20 @@ struct PerftData perftSearch(struct BitBoard *b, int depth)
   return count;
 }
 
+int equivalent(struct BitBoard* b1, struct BitBoard* b2) {
+  if ((b1->ply_count&1) != (b2->ply_count&1)) return 0;
+  if ((b1->c_rights & 15 != b2->c_rights & 15)) return 0;
+  if ((b1->enpassant != b2->enpassant)) return 0; 
+  for (int i = 0; i < 12; i++) {
+    if (b1->pieces[i] != b2->pieces[i]) return 0;
+  }
+}
+
 uint64_t perft(struct BitBoard b, int depth)
 {
   // printBitBoard(b);
-
+  initialiseSeeds();
+  hashcode(&b);
   struct PerftData pd = perftSearch(&b, depth);
 
   printf("depth %d: %ld nodes, %ld captures, %ld enpassants , %ld checks, %ld castles \n", depth, pd.nodes, pd.captures, pd.enpassants, pd.checks, pd.castles);

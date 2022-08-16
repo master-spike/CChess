@@ -8,7 +8,10 @@
 
 int main() {
   srand(time(NULL));
+  initialiseSeeds();
+
   struct BitBoard board = startBoard();
+  hashcode(&board);
 
   for (int i = 1; i <= 5; i++) {
     perft(startBoard(), i);
@@ -17,11 +20,9 @@ int main() {
 
   while (1) {
     printBitBoard(board);
-    nodes_in_minimax = 0;
-    nodes_in_quescience = 0;
     unsigned int depth;
-    struct MinimaxReturn best = timedIterativeDeepening(board,7000000, &depth);
-    printf("Eval: %f. Best move = %d,%d. Total nodes: %lu of which %lu were in quiescence search. Depth %d.\n\n\n",best.val, best.move%64, (best.move/64)%64, nodes_in_minimax + nodes_in_quescience, nodes_in_quescience, depth);
+    struct MinimaxReturn best = timedIterativeDeepening(board,15000000, &depth, 6);
+    printf("Eval: %f. Best move = %d,%d. Total nodes: %lu of which %lu were in quiescence search. Table hits: %lu, Depth %d.\n\n\n",best.val, best.move%64, (best.move/64)%64, nodes_in_minimax + nodes_in_quescience, nodes_in_quescience, table_hits, depth);
     if(!best.move) break;
     board = doMove(&board, best.move);
   }

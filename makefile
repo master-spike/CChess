@@ -11,7 +11,7 @@ SDIR = src
 
 LINKERFLAG = -lm
 
-_OBJS = bitboard.o evaluation.o minimax.o main.o patterns.o
+_OBJS = bitboard.o hashing.o evaluation.o minimax.o main.o patterns.o transpostable.o
 OBJS = $(patsubst %,$(ODIR)/%,$(_OBJS))
 OUT = $(ODIR)/main
 

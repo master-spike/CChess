@@ -17,62 +17,14 @@ void swapDouble(double* d1, double* d2) {
 }
 
 uint64_t nodes_in_minimax;
+uint64_t table_hits;
 uint64_t nodes_in_quescience;
-
-/*
-void sortMovesQsort(int l, int h, struct Move* moves, double* evals) {
-  if (h - l <= 1) return;
-  if (h - l == 2) {
-    if (evals[l] <= evals[l+1]) return;
-    swapMove(moves+l, moves+l+1);
-    swapDouble(evals+l,evals+l+1);
-    return;
-  }
-  double pivot = evals[l];
-  int x = l+1;
-  int y = h-1;
-  while (x < y) {
-    double v1 = evals[x];
-    if (v1 <= pivot) {
-      x++;
-      continue;
-    }
-    double v2 = evals[y];
-    if (v2 > pivot) {
-      y--;
-      continue;
-    }
-    // here we swap
-    swapMove(moves+x, moves+y);
-    swapDouble(evals+x,evals+y);
-    x++; y--;
-  }
-  int m = x;
-  if (x==y) {
-    double v = evals[x];
-    if (v > pivot) m = x-1;
-  }
-  swapMove(moves+m, moves+l);
-  swapDouble(evals+m,evals+l);
-  sortMovesQsort(l, m, moves, evals);
-  sortMovesQsort(m+1, h, moves, evals);
-}
-
-void sortMoves(int l, int h, struct Move* moves, struct Chessboard* board, struct EvalParams* params) {
-  struct Chessboard nextboard;
-  double evals[400];
-  for (int i = l; i < h; i++) {
-    doMove(moves[i], board, &nextboard);
-    evals[i] = evaluate(&nextboard, params);
-  }
-  sortMovesQsort(l, h, moves, evals);
-}
-*/
 
 struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double beta) {
   
   nodes_in_quescience++;
-  
+  struct MinimaxReturn m;
+  m.move = 0;
   struct BitBoard nextboards[400]; // this seems like a reasonable upper bound for the number of legal captures
 
   double b_eval = evaluate(b, alpha, beta);
@@ -93,7 +45,7 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
 
   int n_moves = genMoves(b, nextboards, 0, 1);
 
-  struct MinimaxReturn m;
+
 
   if (n_moves == 0) {
     if (squareAttackedBy(b, findKing(b->pieces[10+(b->ply_count&1)]), 0, b->ply_count&1)) {
@@ -141,7 +93,7 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
   return m;
 }
 
-struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double alpha, double beta, clock_t max_time) {
+struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double alpha, double beta, struct TTTable* ttt, clock_t start_time, clock_t max_time) {
   
   nodes_in_minimax++;
   
@@ -152,13 +104,13 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
 
   struct MinimaxReturn m;
   m.move = 0;
-  if (clock() > max_time && max_time != 0) return m;
+  if (max_time != 0 && clock() - start_time > max_time) return m;
   if (d == 0 && n_moves != 0) {
     m = quescienceSearch(b, alpha, beta);
     return m;
   }
-  
 
+  int node_type = 0;
   // if no legal moves check whether its checkmate or stalemate
   if (n_moves == 0) {
     if (squareAttackedBy(b, findKing(b->pieces[10+(b->ply_count&1)]), 0, b->ply_count&1)) {
@@ -167,6 +119,23 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
     else {
       m.val = 0;
     }
+    return m;
+  }
+
+  struct TTTLookupReturn lookup = tttableLookup(ttt, b, d);
+  if (lookup.valid && lookup.node_type == 0) {
+    m.val = lookup.val;
+    table_hits++;
+    return m;
+  }
+  if (b->ply_count&1 && lookup.valid && lookup.node_type == 1) {
+    m.val = lookup.val;
+    table_hits++;
+    return m;
+  }
+  if (!(b->ply_count&1) && lookup.valid && lookup.node_type == 2) {
+    m.val = lookup.val;
+    table_hits++;
     return m;
   }
 
@@ -180,7 +149,7 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
   if (b->ply_count&1) { // minimizing player
     val = MAX;
     for (int i = 0; i < n_moves; i++) {
-      struct MinimaxReturn t = minimaxAlphaBeta(nextboards+i, d-1, alpha, beta, max_time);
+      struct MinimaxReturn t = minimaxAlphaBeta(nextboards+i, d-1, alpha, beta, ttt, start_time, max_time);
       if (t.val == val) {
         best_moves[num_best] = nextboards[i].last_move;
         num_best++;
@@ -190,14 +159,17 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
         num_best = 1;
       }
       val = (t.val < val) ? t.val : val;
-      if (val < alpha) break;
+      if (val < alpha) {
+        node_type = 1;
+        break;
+      }
       beta = (val < beta) ? val : beta;
     }
   }
   else { // maximising player
     val = MIN;
     for (int i = n_moves - 1; i >= 0; i--) {
-      struct MinimaxReturn t = minimaxAlphaBeta(nextboards+i, d-1, alpha, beta, max_time);
+      struct MinimaxReturn t = minimaxAlphaBeta(nextboards+i, d-1, alpha, beta, ttt, start_time, max_time);
       if (t.val == val) {
         best_moves[num_best] = nextboards[i].last_move;
         num_best++;
@@ -207,30 +179,59 @@ struct MinimaxReturn minimaxAlphaBeta(struct BitBoard* b, unsigned int d, double
         num_best = 1;
       }
       val = (t.val > val) ? t.val : val;
-      if (val > beta) break;
+      if (val > beta) {
+        node_type = 2;
+        break;
+      }
       alpha = (val > alpha) ? val : alpha;
     }
   }
   
+  if (node_type == 0) {
+    if (val < alpha) node_type = 3;
+    if (val > beta) node_type = 4;
+  }
+
+  struct TTTableEntry te;
+  te.board = *b;
+  te.depth = d;
+  te.evaluation = val;
+  te.node_type = node_type;
+  te.valid = 1;
+
+  if (node_type <= 2) tttableInsert(ttt, te);
 
   m.val = val;
   m.move = best_moves[(uint8_t) (rand() % num_best)];
   return m;
 }
 
-struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_time, unsigned int* depth) {
+void resetPerfStats() {
+  table_hits = 0;
+  nodes_in_minimax = 0;
+  nodes_in_quescience = 0;
+}
+
+struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_time, unsigned int* depth, int max_depth) {
   unsigned int d = 2;
   clock_t start_time = clock();
   clock_t current_time = start_time;
 
+  resetPerfStats();
 
+  struct TTTable tttable = makeTTTable(16, 16);
   struct MinimaxReturn m;
-  struct MinimaxReturn m_next = minimaxAlphaBeta(&board, 1, MIN, MAX, 0);
-  while(current_time - start_time < max_time) {
+  struct MinimaxReturn m_next = minimaxAlphaBeta(&board, 1, MIN, MAX, &tttable, start_time, 0);
+  while(current_time - start_time < max_time && d <= max_depth) {
     d++;
     m = m_next;
-    m_next = minimaxAlphaBeta(&board, d, MIN, MAX, start_time + max_time);
+    m_next = minimaxAlphaBeta(&board, d, MIN, MAX, &tttable ,start_time, max_time);
     current_time = clock();
+  }
+  free(tttable.table);
+  if (current_time - start_time < max_time) {
+    d++;
+    m = m_next;
   }
   *depth = d-1;
   return m;
