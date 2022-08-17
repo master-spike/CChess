@@ -31,11 +31,7 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
   
   int cap_restrict = 1;
   double delta = 0;
-<<<<<<< HEAD
-
-=======
   
->>>>>>> 317f54663c5590970721fc09e8836f50b70c6e6a
   if (b->ply_count&1) {
     if (b_eval <= alpha) {
       m.val = alpha;
@@ -296,13 +292,8 @@ struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_
 
   struct TTTable tttable = makeTTTable(16, 4);
   struct MinimaxReturn m;
-<<<<<<< HEAD
-  struct MinimaxReturn m_next = minimaxAlphaBeta(&board, 1, 1, MIN, MAX, &tttable, 1, start_time, 0);
-  while(current_time - start_time < max_time && d <= max_depth) {
-=======
-  struct MinimaxReturn m_next = minimaxAlphaBeta(&board, 1, MIN, MAX, &tttable, start_time, 0);
+  struct MinimaxReturn m_next = minimaxAlphaBeta(&board, 1, 1, MIN, MAX, &tttable,  1, start_time, 0);
   while(current_time - start_time < max_time && d < max_depth) {
->>>>>>> 317f54663c5590970721fc09e8836f50b70c6e6a
     d++;
     m = m_next;
     m_next = minimaxAlphaBeta(&board, d, d, MIN, MAX, &tttable, 1 ,start_time, max_time);
