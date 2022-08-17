@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include "types.h"
 
-uint32_t piece_seeds[768];
-uint32_t cr_seeds[16];
-uint32_t ep_seeds[9];
-uint32_t player_seed;
+extern uint32_t piece_seeds[768];
+extern uint32_t cr_seeds[16];
+extern uint32_t ep_seeds[9];
+extern uint32_t player_seed;
 
 void initialiseSeeds();
 uint32_t hashcode(struct BitBoard* b);
