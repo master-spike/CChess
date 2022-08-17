@@ -31,10 +31,21 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
   
   int cap_restrict = 1;
   double delta = 0;
+  
   if (b->ply_count&1) {
+    if (b_eval <= alpha) {
+      m.val = alpha;
+      return m;
+    }
+    if (b_eval > beta) beta = b_eval;
     delta = b_eval - DELTA_CUTOFF - beta;
   }
   else {
+    if (b_eval >= beta) {
+      m.val = beta;
+      return m;
+    }
+    if (b_eval < alpha) alpha = b_eval;
     delta = alpha + b_eval - DELTA_CUTOFF;
   }
 

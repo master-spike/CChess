@@ -1,7 +1,10 @@
 #include "hashing.h"
 #include "bitboard.h"
 
-
+uint32_t piece_seeds[768];
+uint32_t cr_seeds[16];
+uint32_t ep_seeds[9];
+uint32_t player_seed;
 
 struct xorshift64_state {
   uint64_t a;
