@@ -907,7 +907,7 @@ int genMoves(struct BitBoard *board, struct BitBoard *new_boards, int cap_only, 
       
       int flag = 1;
       while(orth_threats) { // check for cases where en passant would discover our king
-        uint64_t oth_new = orth_threats ^ (orth_threats - 1);
+        uint64_t oth_new = orth_threats & (orth_threats - 1);
         if (!(block_masks[our_king*64 + findKing(oth_new ^ orth_threats)] & ot_blockers)) {
           flag = 0;
           break;
