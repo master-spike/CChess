@@ -230,10 +230,10 @@ struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_
 
   resetPerfStats();
 
-  struct TTTable tttable = makeTTTable(16, 16);
+  struct TTTable tttable = makeTTTable(16, 4);
   struct MinimaxReturn m;
   struct MinimaxReturn m_next = minimaxAlphaBeta(&board, 1, MIN, MAX, &tttable, start_time, 0);
-  while(current_time - start_time < max_time && d <= max_depth) {
+  while(current_time - start_time < max_time && d < max_depth) {
     d++;
     m = m_next;
     m_next = minimaxAlphaBeta(&board, d, MIN, MAX, &tttable ,start_time, max_time);
