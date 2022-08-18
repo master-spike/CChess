@@ -1095,6 +1095,7 @@ struct PerftData perftSearch(struct BitBoard *b, int depth)
 }
 
 int equivalent(struct BitBoard* b1, struct BitBoard* b2) {
+  if (b1->hashcode != b2->hashcode) return 0;
   if ((b1->ply_count&1) != (b2->ply_count&1)) return 0;
   if ((b1->c_rights & 15 != b2->c_rights & 15)) return 0;
   if ((b1->enpassant != b2->enpassant)) return 0; 
