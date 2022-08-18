@@ -238,6 +238,7 @@ struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_
     m = m_next;
     m_next = minimaxAlphaBeta(&board, d, MIN, MAX, &tttable ,start_time, max_time);
     current_time = clock();
+    clearTTable(&tttable);
   }
   free(tttable.table);
   if (current_time - start_time < max_time) {

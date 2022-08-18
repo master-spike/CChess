@@ -48,3 +48,10 @@ void tttableInsert(struct TTTable* tttable, struct TTTableEntry te) {
   int i = (hc >> tttable->logsize) % tttable->entries_per_hash;
   ptr[i] = te;
 }
+
+void clearTTable(struct TTTable* table){
+  size_t size = (size_t) (1 << table->logsize) * (size_t) table->entries_per_hash;
+  for (int i = 0; i < size; i++) {
+    table->table[i].valid = 0;
+  }
+}

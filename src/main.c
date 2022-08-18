@@ -21,7 +21,7 @@ int main() {
   while (1) {
     printBitBoard(board);
     unsigned int depth;
-    struct MinimaxReturn best = timedIterativeDeepening(board,15000000, &depth, 6);
+    struct MinimaxReturn best = timedIterativeDeepening(board,40000000, &depth, 6);
     printf("Eval: %f. Best move = %d,%d. Total nodes: %lu of which %lu were in quiescence search. Table hits: %lu, Depth %d.\n\n\n",best.val, best.move%64, (best.move/64)%64, nodes_in_minimax + nodes_in_quescience, nodes_in_quescience, table_hits, depth);
     if(!best.move) break;
     board = doMove(&board, best.move);
