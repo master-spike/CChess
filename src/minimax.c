@@ -31,23 +31,6 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
   
   int cap_restrict = 1;
   double delta = 0;
-  
-  if (b->ply_count&1) {
-    if (b_eval <= alpha) {
-      m.val = alpha;
-      return m;
-    }
-    if (b_eval > beta) beta = b_eval;
-    delta = b_eval - DELTA_CUTOFF - beta;
-  }
-  else {
-    if (b_eval >= beta) {
-      m.val = beta;
-      return m;
-    }
-    if (b_eval < alpha) alpha = b_eval;
-    delta = alpha + b_eval - DELTA_CUTOFF;
-  }
 
   if (delta > 100.0) cap_restrict++;
   if (delta > 320) cap_restrict++;
@@ -66,6 +49,23 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
       m.val = b_eval;
     }
     return m;
+  }
+
+  if (b->ply_count&1) {
+    if (b_eval <= alpha) {
+      m.val = alpha;
+      return m;
+    }
+    if (b_eval > beta) beta = b_eval;
+    delta = b_eval - DELTA_CUTOFF - beta;
+  }
+  else {
+    if (b_eval >= beta) {
+      m.val = beta;
+      return m;
+    }
+    if (b_eval < alpha) alpha = b_eval;
+    delta = alpha + b_eval - DELTA_CUTOFF;
   }
 
   struct TTTLookupReturn lookup = tttableLookup(ttt, b, 0);
@@ -129,6 +129,10 @@ struct MinimaxReturn quescienceSearch(struct BitBoard* b, double alpha, double b
     }
   }
 
+  if (node_type == 0) {
+    if (val < alpha) node_type = 3;
+    if (val > beta) node_type = 4;
+  }
 
   if (node_type <= 2 && cap_restrict <= 1) {
     struct TTTableEntry te;
@@ -298,6 +302,7 @@ struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_
     m = m_next;
     m_next = minimaxAlphaBeta(&board, d, d, MIN, MAX, &tttable, 1 ,start_time, max_time);
     current_time = clock();
+    clearTTable(&tttable);
   }
   free(tttable.table);
   if (current_time - start_time < max_time) {
@@ -305,6 +310,20 @@ struct MinimaxReturn timedIterativeDeepening(struct BitBoard board, clock_t max_
     m = m_next;
   }
   *depth = d-1;
+  return m;
+}
+
+struct MinimaxReturn idsAspirational(struct BitBoard board) {
+  double window_sizes[6] = { 1000.0, 500.0, 300.0, 150.0, 100.0};
+  resetPerfStats();
+  struct TTTable tttable = makeTTTable(16, 4);
+  struct MinimaxReturn m = minimaxAlphaBeta(&board, 1, 1, MIN, MAX, &tttable,  1, 0, 0);
+  unsigned int d = 2;
+  while(d <= 6) {
+    m = minimaxAlphaBeta(&board, d, d, m.val - window_sizes[d-2], m.val + window_sizes[d-2], &tttable, 1 ,0, 0);
+    clearTTable(&tttable);
+    d++;
+  }
   return m;
 }
 

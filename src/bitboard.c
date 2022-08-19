@@ -9,15 +9,9 @@ const uint64_t default_pieces[12] = {65280ULL, 71776119061217280ULL,
 
 const char piece_chars[12] = {'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r', 'Q', 'q', 'K', 'k'};
 
-int countBits(uint64_t n)
+inline int countBits(uint64_t n)
 {
-  int c = 0;
-  while (n)
-  {
-    c++;
-    n = n & (n - 1);
-  }
-  return c;
+  return __builtin_popcountll(n);
 }
 
 uint64_t allPieces(struct BitBoard *b)
@@ -150,23 +144,9 @@ struct BitBoard bbDoEnpassant(struct BitBoard *b, int pi, int pj, int ep)
   return newboard;
 }
 
-int findKing(uint64_t king_bits)
+inline int findKing(uint64_t king_bits)
 {
-
-  int p = 0;
-  int k = 32;
-  while (k > 0)
-  {
-    uint64_t mask = ((1ULL << k) - 1) << k;
-    if (king_bits & mask)
-    {
-      king_bits = king_bits >> k;
-      p += k;
-    }
-    k = k / 2;
-  }
-
-  return p;
+  return __builtin_ffsll(king_bits) - 1;
 }
 
 int getPieceAt(struct BitBoard *b, int pos, int player)

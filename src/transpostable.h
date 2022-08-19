@@ -9,5 +9,6 @@
 struct TTTLookupReturn tttableLookup(struct TTTable* tttable, struct BitBoard* board, int depth);
 void tttableInsert(struct TTTable* tttable, struct TTTableEntry te);
 struct TTTable makeTTTable(int logsize, int eph);
+void clearTTable(struct TTTable* tttable);
 
 #endif
